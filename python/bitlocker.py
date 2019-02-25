@@ -362,6 +362,16 @@ def main():
     fve = FVE(data)
     print(fve)
 
+    vmks = fve.vmks
+    fvek = fve.fvek
+
+    # get the VMK protected by password and calculate VMK key from it
+    pw_vmk = next(v for v in vmks if v.is_password_protected)
+    pw_vmk_key = utils.get_key_from_password(constants.PASSWORD, pw_vmk.salt)
+
+    print("VMK key:\n%s" % utils.bytes_as_hex(pw_vmk_key))
+
+
 
 if __name__ == '__main__':
     main()
