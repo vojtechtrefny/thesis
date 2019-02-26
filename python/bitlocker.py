@@ -112,6 +112,23 @@ class FVEK(AESEncryptedKey):
         return s
 
 
+class UnecryptedKey():
+    def __init__(self, raw_data):
+        self.raw_data = raw_data
+
+        self.size = utils.le_decode_uint32(self.raw_data[0:4])
+        self.key = self.raw_data[12:]
+
+    def __str__(self):
+        encryption = constants.ENCRYPTION_METHODS[utils.le_decode_uint8(self.raw_data[8:10])]
+
+        s = "\033[1mUnecrypted key\033[0m\n"
+        s += "\tEncryption method:\t%s\n" % encryption
+        s += "\tKey:\t %s\n" % utils.bytes_as_hex(self.key)
+
+        return s
+
+
 class MetadataEntry():
     """Object representing BitLocker metadata entry"""
 
@@ -372,8 +389,17 @@ def main():
     pw_vmk = next(v for v in vmks if v.is_password_protected)
     pw_vmk_key = utils.get_key_from_password(constants.PASSWORD, pw_vmk.salt)
 
-    print("VMK key:\n%s" % utils.bytes_as_hex(pw_vmk_key))
+    # decrypt the VMK
+    encryption_suite = AES.new(pw_vmk_key, AES.MODE_CCM, pw_vmk.aes_key.raw_nonce)
+    decrypted_data = encryption_suite.decrypt_and_verify(pw_vmk.aes_key.key, received_mac_tag=pw_vmk.aes_key.mac_tag)
+    vmk_open_key1 = UnecryptedKey(decrypted_data)
 
+    # and use it to decrypt the FVEK
+    encryption_suite = AES.new(vmk_open_key1.key, AES.MODE_CCM, fvek.raw_nonce)
+    decrypted_data = encryption_suite.decrypt_and_verify(fvek.key, received_mac_tag=fvek.mac_tag)
+
+    fvek_open_key = UnecryptedKey(decrypted_data)
+    print(fvek_open_key)
 
 
 if __name__ == '__main__':
