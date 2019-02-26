@@ -84,11 +84,14 @@ class AESEncryptedKey():
     def __init__(self, raw_data):
         self.raw_data = raw_data
 
+        self.raw_nonce = self.raw_data[0:12]
+
         win_time = utils.le_decode_uint64(self.raw_data[0:8])
         self.nonce = datetime.utcfromtimestamp(utils.filetime_to_unixtime(win_time))
 
         self.counter = utils.le_decode_uint32(self.raw_data[8:12])
-        self.key = self.raw_data[12:]
+        self.mac_tag = self.raw_data[12:28]
+        self.key = self.raw_data[28:]
 
     def __str__(self):
         s = "\tAES-CCM encrypted key\n"
