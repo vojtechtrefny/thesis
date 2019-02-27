@@ -42,6 +42,32 @@ def bytes_decode(data):
     return "'%s'" % data.decode("utf-8", errors="ignore")
 
 
+# print
+def _decode_and_replace(data):
+    result = ""
+    chunks = [data[x:x + 1] for x in range(0, len(data), 1)]
+    for chunk in chunks:
+        try:
+            decoded = chunk.decode("ascii")
+        except UnicodeDecodeError:
+            result += "."
+        else:
+            if not decoded.isprintable():
+                result += "."
+            else:
+                result += decoded
+    return result
+
+
+def pprint_bytes(data):
+    chunks = [data[x:x + 16] for x in range(0, len(data), 16)]
+    for i, chunk in enumerate(chunks):
+        index = '{:08x}'.format(i * 16)
+        ashex = bytes_as_hex(chunk)
+        decoded = _decode_and_replace(chunk)
+        print("%s: %s  %s  |%s %s|" % (index, ashex[:8], ashex[8:], decoded[:8], decoded[8:]))
+
+
 # misc
 def read_image(image):
     with open(image, "rb") as f:
