@@ -1,3 +1,5 @@
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 from Cryptodome.Cipher import AES
 from datetime import datetime
 
@@ -147,6 +149,9 @@ class MetadataEntry():
 
         if self.is_stretch_key:
             self.salt = self.entry_data[4:20]
+        if self.is_volume_header:
+            self.data_offset = utils.le_decode_uint64(self.entry_data[0:8])
+            self.block_size = utils.le_decode_uint64(self.entry_data[8:16])
 
     def __str__(self):
         if self.is_vmk:
@@ -160,7 +165,7 @@ class MetadataEntry():
         elif self.is_aes_key:
             return str(self.aes_key)
         elif self.is_volume_header:
-            return ""  # FIXME
+            return ""  # nothing special to print here
         else:
             return "Unknown metadata entry. Type: %s, Value: %s" % (constants.FVE_ENTRY_TYPES[self.type],
                                                                     constants.FVE_VALUE_TYPES[self.value])
@@ -375,6 +380,14 @@ class FVE():
 
         raise RuntimeError("No FVEK entry found in this FVE header")
 
+    @property
+    def volume_header_block(self):
+        for entry in self._entries:
+            if entry.is_volume_header:
+                return entry
+
+        raise RuntimeError("No Volume header block entry found in this FVE header")
+
 
 def main():
     data = utils.read_image(IMAGE)
@@ -400,6 +413,24 @@ def main():
 
     fvek_open_key = UnecryptedKey(decrypted_data)
     print(fvek_open_key)
+
+    # first data block
+    first_block = fve.volume_header_block
+    data_block = data[first_block.data_offset:(first_block.data_offset + 512)]
+
+    print("\033[1mFirst sector (encrypted):\033[0m")
+    utils.pprint_bytes(data_block)
+
+    print()
+
+    # decrypted first data block
+    iv = int(first_block.data_offset / 512).to_bytes(16, "little")  # IV = block number
+    decryptor = Cipher(algorithms.AES(fvek_open_key.key), modes.XTS(iv),
+                       backend=default_backend()).decryptor()
+    decrypted_data = decryptor.update(data_block) + decryptor.finalize()
+
+    print("\033[1mFirst sector (decrypted):\033[0m")
+    utils.pprint_bytes(decrypted_data)
 
 
 if __name__ == '__main__':
