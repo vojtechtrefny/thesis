@@ -1,0 +1,212 @@
+\documentclass{beamer}
+
+\mode<presentation> {
+%  \usetheme{Warsaw}
+	\usetheme{Boadilla}
+	\setbeamercovered{transparent}
+}
+
+%\usepackage{ucs}
+\usepackage[utf8]{inputenc}
+\usepackage[czech]{babel}
+%\usepackage{palatino}
+\usepackage{graphicx}
+\usepackage{listings}
+
+\title[Bitlocker šifrování v Linuxovém prostředí]{Bitlocker šifrování v Linuxovém prostředí\\\small{Diplomová práce -- kontrolní den č. 1}}
+\author{Vojtěch Trefný}
+\institute[FAI UTB]{Fakulta aplikované informatiky UTB}
+\date{1.~3.~2019}
+
+\begin{document}
+
+\begin{frame}
+	\titlepage
+\end{frame}
+
+\begin{frame}
+	\frametitle{Osnova}
+	\tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Zadání}
+
+\begin{frame}
+	\frametitle{Zadání}
+	\begin{block}{}
+		\begin{itemize}
+			\item \textbf{Vedoucí:} Ing. Michal Bližňák Ph.D.
+			\item \textbf{Konzultant:} Ing. Milan Brož (Red Hat Czech/CRoCS FI MUNI)
+		\end{itemize}
+	\end{block}
+
+	\begin{block}{}
+		\begin{itemize}
+			\item Seznamte se s nástrojem Windows Bitlocker pro šifrování disků.
+			\item Popište podporované šifrovací módy a možnosti správy klíčů.
+			\item Analyzujte použitá kryptografická primitiva a jejich atributy.
+			\item Seznamte se s nástrojem a knihovnou libbde a možnostmi přístupu k Bitlocker obrazu disku v prostředí OS Linux.
+			\item Navrhněte a podle možností implementujte nutná rozšíření Linuxových nástrojů pro jednoduchý přístup k obsahu Bitlocker disku.
+		\end{itemize}
+	\end{block}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Rešerše}
+
+\begin{frame}
+	\frametitle{Dostupné zdroje informací}
+	\begin{block}{}
+		\begin{itemize}
+			\item Původní implementace pro Windows Vista je popsána Nielsem Fergusonem v článku \emph{AES-CBC + Elephant diffuser A Disk Encryption Algorithm for Windows}
+			\item Novější varianty částečně popisuje Dan Rosendorf v článku \emph{Bitlocker: A little about the internals and what changed in Windows 8}.
+			\item Velmi dobrou specifikaci formátu BitLocker obsahuje také dokumentace ke knihovně \texttt{libbde} od Joachima Metze.
+			\item Existují i další zdroje, které se většinou věnují prvním verzím BitLockeru v době jeho vzniku v roce 2006.
+		\end{itemize}
+	\end{block}
+
+\end{frame}
+
+\begin{frame}
+	\frametitle{Podpora použitých kryptografických funkcí}
+
+	\begin{block}{Userspace}
+		\begin{itemize}
+			\item Používané kryptografické algoritmy:
+			\begin{itemize}
+				\item AES-CCM
+				\item SHA256
+			\end{itemize}
+			\item Plně podporované ve standardních kryptografických knihovnách (\texttt{libopenssl}, \texttt{libgcrypt}).
+		\end{itemize}
+	\end{block}
+
+\vspace{0.5cm}
+
+	\begin{block}{Kernel}
+		\begin{itemize}
+			\item Používané kryptografické algoritmy:
+			\begin{itemize}
+				\item AES-CBC 128/256bit (Windows Vista)
+				\item AES-CBC 128/256bit + Elephant Diffuser (Windows Vista)
+				\item AES-XTS 128/256bit (Windows 7+)
+			\end{itemize}
+			\item V kernel crypto API podporavané kromě Elephant.
+		\end{itemize}
+	\end{block}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Implementace prototypu}
+
+\begin{frame}
+	\frametitle{Prototyp pro práci s BitLockerem v Linuxu}
+
+	\begin{block}{}
+		\begin{itemize}
+			\item Jednoduchý \uv{proof-of-concept} napsaný v Pythonu s použitím knihovny \texttt{pycryptoraphy}.
+			\item Pouze základní podpora pro data šifrovaná pomocí AES-XTS (BitLocker varianta ve Windows 7+).
+		\end{itemize}
+	\end{block}
+
+\vspace{0.5cm}
+
+	\begin{block}{}
+		\begin{itemize}
+			\item V současné době zvládá:
+			\begin{itemize}
+				\item Odvodit dešifrovací klíč z hesla nebo záložního (recovery) hesla.
+				\item Dešifrovat klíče uložené v BitLocker hlavičce (\texttt{VMK} a \texttt{FVEK}).
+				\item Dešifrovat první sektor disku (NTFS hlavička) pomocí \texttt{FVEK}.
+			\end{itemize}
+		\end{itemize}
+	\end{block}
+
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Ukázka -- BitLocker hlavička}
+
+	\begin{lstlisting}
+Encryption:	AES-XTS 128-bit encryption
+Identifier:	1f8bf933-8323-4c97-8a89-a67625ac8f40
+Creation time:	2019-02-03 09:10:22.265406
+Description:	DESKTOP-NPM7RCA G: 2/3/2019
+
+VMK
+	Identifier:	f0f61678-fb6f-4ab1-934a-...
+	Type:		VMK protected with password
+	Salt:		03 d1 b4 23 6b f4 5b df ...
+	AES-CCM encrypted key
+		Nonce:	2019-02-03 09:10:36.052000
+		Count:	3
+		Key:	0d a8 61 01 ...
+	\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+	\frametitle{Ukázka -- BitLocker první sektor}
+
+	\begin{lstlisting}
+00000000: eb 52 90 ... 08 00 00	|.R.NTFS     .....|
+00000010: 00 00 00 ... 28 03 00	|........ ?....(..|
+00000020: 00 00 00 ... 00 00 00	|........ ........|
+00000030: 55 21 00 ... 00 00 00	|U!...... ........|
+00000040: f6 00 00 ... 3d 84 a4	|........ RS=.}=..|
+...
+00000180: b4 0e bb ... 20 64 69	|........ ....A di|
+00000190: 73 6b 20 ... 20 6f 63	|sk read  error oc|
+000001a0: 63 75 72 ... 4d 47 52	|curred.. .BOOTMGR|
+000001b0: 20 69 73 ... 64 00 00	| is comp ressed..|
+000001c0: 0a 50 72 ... 6c 74 2b	|.Press C trl+Alt+|
+000001d0: 44 65 6c ... 74 0d 0a	|Del to r estart..|
+000001e0: 00 00 00 ... 00 00 00	|........ ........|
+
+	\end{lstlisting}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Další kroky}
+
+\begin{frame}
+  \frametitle{Další kroky}
+	\begin{block}{}
+		\begin{itemize}
+					\item Rozšíření současného prototypu o podporu pro čtení celého šifrovaného disku.
+					\item Testování s použitím standardních nástrojů pro tvorbu blokových zařízení v Linuxu (\texttt{device-mapper}/\texttt{dmsetup}).
+					\item Případné rozšíření \texttt{dm-crypt} modulu o chybějící funkcionalitu (pravděpodobně podpora odvození IV).
+					\item Implementace prototypu jako knihovny v jazyce C tak, aby jej šlo použít v existujících nástrojích/knihovnách jako \texttt{cryptsetup} a/nebo \texttt{UDisks}.
+					\item Podpora ostatních (starších a méně obvyklých) variant BitLockeru.
+		\end{itemize}
+	\end{block}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Závěr}
+
+\begin{frame}
+	\frametitle{Závěr}
+
+	\begin{center}
+	Děkuji vám za pozornost.
+	\end{center}
+
+\vspace{0.5cm}
+
+	\begin{center}
+	Prostor pro vaše dotazy.
+	\end{center}
+\end{frame}
+
+\end{document}

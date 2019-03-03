@@ -4,3 +4,13 @@ __pycache__/
 
 backups/
 data/
+
+# latex
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.synctex.*
+*.toc
+*.vrb
