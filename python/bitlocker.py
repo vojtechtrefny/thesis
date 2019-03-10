@@ -393,6 +393,22 @@ class FVE():
         raise RuntimeError("No Volume header block entry found in this FVE header")
 
 
+def _decrypt_data(key, data, iv_offset):
+    decrypted = b""
+
+    sectors = int(len(data) / constants.SECTOR_SIZE)
+
+    for i in range(sectors):
+        iv = (int(iv_offset / constants.SECTOR_SIZE) + i).to_bytes(16, "little")  # IV = block number
+
+        decryptor = Cipher(algorithms.AES(key), modes.XTS(iv),
+                           backend=default_backend()).decryptor()
+        start = i * constants.SECTOR_SIZE
+        end = (i * constants.SECTOR_SIZE) + constants.SECTOR_SIZE
+        decrypted += decryptor.update(data[start:end]) + decryptor.finalize()
+
+    return decrypted
+
 def main():
     data = utils.read_image(IMAGE)
 
@@ -420,7 +436,7 @@ def main():
 
     # first data block
     first_block = fve.volume_header_block
-    data_block = data[first_block.data_offset:(first_block.data_offset + 512)]
+    data_block = data[first_block.data_offset:(first_block.data_offset + constants.SECTOR_SIZE)]
 
     print("\033[1mFirst sector (encrypted):\033[0m")
     utils.pprint_bytes(data_block)
@@ -428,10 +444,9 @@ def main():
     print()
 
     # decrypted first data block
-    iv = int(first_block.data_offset / 512).to_bytes(16, "little")  # IV = block number
-    decryptor = Cipher(algorithms.AES(fvek_open_key.key), modes.XTS(iv),
-                       backend=default_backend()).decryptor()
-    decrypted_data = decryptor.update(data_block) + decryptor.finalize()
+    decrypted_data = _decrypt_data(fvek_open_key.key,
+                                   data_block,
+                                   first_block.data_offset)
 
     print("\033[1mFirst sector (decrypted):\033[0m")
     utils.pprint_bytes(decrypted_data)
