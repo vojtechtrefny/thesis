@@ -273,6 +273,8 @@ class FVE():
 
         self._entries = []
 
+        self._metadata_size = 0
+
         self._parse()
 
     def _parse(self):
@@ -295,6 +297,8 @@ class FVE():
 
             self._metadata_bounds.append((block_header_start, metadata_header_end))
 
+        self._metadata_size = utils.le_decode_uint32(self.header[0:4])
+
     def _verify_headers(self):
         # we have three headers, just make sure all of them are the same
         if not all(m == self._metadata_block_headers[0] for m in self._metadata_block_headers):
@@ -307,7 +311,7 @@ class FVE():
         # metadata entries just start after every FVE header and ends at start of
         # the next one
         start = self._metadata_bounds[0][1]
-        end = self._metadata_bounds[1][0]
+        end = self._metadata_bounds[0][1] + self._metadata_size
 
         # we don't know how many entries there are, so just read until there is
         # at least two bytes to read (entry lenght)
