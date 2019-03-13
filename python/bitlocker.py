@@ -394,18 +394,20 @@ class FVE():
 
 
 def _decrypt_data(key, data, iv_offset):
-    decrypted = b""
+    decrypted = bytearray()
 
     sectors = int(len(data) / constants.SECTOR_SIZE)
 
     for i in range(sectors):
         iv = (int(iv_offset / constants.SECTOR_SIZE) + i).to_bytes(16, "little")  # IV = block number
 
-        decryptor = Cipher(algorithms.AES(key), modes.XTS(iv),
-                           backend=default_backend()).decryptor()
+        cipher = Cipher(algorithms.AES(key), modes.XTS(iv),
+                        backend=default_backend())
+        decryptor = cipher.decryptor()
         start = i * constants.SECTOR_SIZE
         end = (i * constants.SECTOR_SIZE) + constants.SECTOR_SIZE
-        decrypted += decryptor.update(data[start:end]) + decryptor.finalize()
+        result = decryptor.update(data[start:end]) + decryptor.finalize()
+        decrypted.extend(bytearray(result))
 
     return decrypted
 
