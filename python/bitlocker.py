@@ -269,7 +269,7 @@ class FVE():
 
         self._metadata_block_headers = []
         self._metadata_headers = []
-        self._metadata_bounds = []
+        self._metadata_starts = []
 
         self._entries = []
 
@@ -295,7 +295,7 @@ class FVE():
             metadata_header_end = metadata_header_start + constants.FVE_METADATA_HEADER_LEN
             self._metadata_headers.append(self.raw_data[metadata_header_start:metadata_header_end])
 
-            self._metadata_bounds.append((block_header_start, metadata_header_end))
+            self._metadata_starts.append(block_header_start)
 
         self._metadata_size = utils.le_decode_uint32(self.header[0:4])
 
@@ -310,8 +310,8 @@ class FVE():
     def _get_metadata_entries(self):
         # metadata entries just start after every FVE header and ends at start of
         # the next one
-        start = self._metadata_bounds[0][1]
-        end = self._metadata_bounds[0][1] + self._metadata_size
+        start = self._metadata_starts[0] + constants.FVE_METADATA_BLOCK_HEADER_LEN + constants.FVE_METADATA_HEADER_LEN
+        end = self._metadata_starts[0] + constants.FVE_METADATA_BLOCK_HEADER_LEN + constants.FVE_METADATA_HEADER_LEN + self._metadata_size
 
         # we don't know how many entries there are, so just read until there is
         # at least two bytes to read (entry lenght)
