@@ -453,6 +453,29 @@ def main():
     print("\033[1mFirst sector (decrypted):\033[0m")
     utils.pprint_bytes(decrypted_data)
 
+    # decrypt whole "header" part
+    decrypted_header = _decrypt_data(fvek_open_key.key,
+                                     data[first_block.data_offset:(first_block.data_offset + first_block.block_size)],
+                                     first_block.data_offset)
+
+    # decrypt everything
+    decrypted_everything = _decrypt_data(fvek_open_key.key, data[8192:], 8192)
+
+    # now replace bitlocker metadata with zeroes
+    # - 64k after each fve header start
+    # - 8k after the encrypted NTFS header start
+    for metadata in fve._metadata_starts:
+        for i in range(64 * 1024):
+            decrypted_everything[metadata + i - 8192] = 0x00
+
+    for i in range(8 * 1024):
+        decrypted_everything[fve.volume_header_block.data_offset + i - 8192] = 0x00
+
+    # write the decrypted file
+    with open("../data/decrypted.raw", "wb+") as f:
+        f.write(bytes(decrypted_header))
+        f.write(bytes(decrypted_everything))
+
 
 if __name__ == '__main__':
     main()
