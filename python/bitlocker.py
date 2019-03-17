@@ -417,7 +417,7 @@ def _decrypt_data(key, data, iv_offset):
     return decrypted
 
 
-def _decrypt_and_save_image(fve, debug, data, fvek_open_key, res_dir):
+def _decrypt_and_save_image(fve, debug, data, fvek_open_key, res_file):
     # first data block
     first_block = fve.volume_header_block
     data_block = data[first_block.data_offset:(first_block.data_offset + constants.SECTOR_SIZE)]
@@ -454,15 +454,120 @@ def _decrypt_and_save_image(fve, debug, data, fvek_open_key, res_dir):
     for i in range(8 * 1024):
         decrypted_everything[fve.volume_header_block.data_offset + i - 8192] = 0x00
 
+    # add some "normal" extension to the decrypted image file
+    if not res_file.endswith(".raw"):
+        res_file += ".raw"
+
     # write the decrypted file
-    with open(os.path.join(res_dir, "decrypted.raw"), "wb+") as f:
+    with open(res_file, "wb+") as f:
         f.write(bytes(decrypted_header))
         f.write(bytes(decrypted_everything))
 
-    print("Decrypted image saved to '%s'." % os.path.join(res_dir, "decrypted.raw"))
+    print("Decrypted image saved to '%s'." % res_file)
 
 
-def main(device, debug, password):
+def _create_dm_device(fve, device, fvek_open_key, mapper_name):
+    first_block = fve.volume_header_block
+
+    crypt_template = "{start} {size} crypt aes-xts-plain64 {key} {iv_offset} {device} {offset}"
+    zero_template = "{start} {size} zero"
+    table = ""
+    start = 0
+
+    # header
+    table += crypt_template.format(start=start,
+                                   size=int(first_block.block_size / constants.SECTOR_SIZE),
+                                   key=utils.bytes_as_hex_dmsetup(fvek_open_key.key),
+                                   iv_offset=int(first_block.data_offset / constants.SECTOR_SIZE),
+                                   device=device,
+                                   offset=int(first_block.data_offset / constants.SECTOR_SIZE))
+    start += int(first_block.block_size / constants.SECTOR_SIZE)
+    table += r"'\\n'"
+
+    # first data part up to the first fve header
+    size = int(fve._metadata_starts[0] / constants.SECTOR_SIZE) - start
+    table += crypt_template.format(start=start,
+                                   size=size,
+                                   key=utils.bytes_as_hex_dmsetup(fvek_open_key.key),
+                                   iv_offset=start,
+                                   device=device,
+                                    offset=start)
+    start += size
+    table += r"'\\n'"
+
+    # zeroes instead of the first fve header
+    size = int(64 * 1024 / constants.SECTOR_SIZE)
+    table += zero_template.format(start=start,
+                                  size=size)
+    start += size
+    table += r"'\\n'"
+
+    # zeroes instead of the the "encrypted" ntfs header
+    size = int(8 * 1024 / constants.SECTOR_SIZE)
+    table += zero_template.format(start=start,
+                                  size=size)
+    start += size
+    table += r"'\\n'"
+
+    # second data part up to the second fve header
+    size = int(fve._metadata_starts[1] / constants.SECTOR_SIZE) - start
+    table += crypt_template.format(start=start,
+                                   size=size,
+                                   key=utils.bytes_as_hex_dmsetup(fvek_open_key.key),
+                                   iv_offset=start,
+                                   device=device,
+                                   offset=start)
+    start += size
+    table += r"'\\n'"
+
+    # zeroes instead of the second fve header
+    size = int(64 * 1024 / constants.SECTOR_SIZE)
+    table += zero_template.format(start=start,
+                                  size=size)
+    start += size
+    table += r"'\\n'"
+
+    # third data part up to the third fve header
+    size = int(fve._metadata_starts[2] / constants.SECTOR_SIZE) - start
+    table += crypt_template.format(start=start,
+                                   size=size,
+                                   key=utils.bytes_as_hex_dmsetup(fvek_open_key.key),
+                                   iv_offset=start,
+                                   device=device,
+                                   offset=start)
+    start += size
+    table += r"'\\n'"
+
+    # zeroes instead of the third fve header
+    size = int(64 * 1024 / constants.SECTOR_SIZE)
+    table += zero_template.format(start=start,
+                                  size=size)
+    start += size
+    table += r"'\\n'"
+
+    device_size = 104857600  # FIXME
+
+    # fourth (and last) part of the data
+    size = int(device_size / constants.SECTOR_SIZE) - start
+    table += crypt_template.format(start=start,
+                                   size=size,
+                                   key=utils.bytes_as_hex_dmsetup(fvek_open_key.key),
+                                   iv_offset=start,
+                                   device=device,
+                                   offset=start)
+
+    # dmsetup command
+    cmd = "echo -e '%s' | dmsetup create %s" % (table, mapper_name)
+
+    ret, out = utils.run_command(cmd)
+    if ret != 0:
+        print("Failed to create device mapper device: %s" % out)
+        sys.exit(1)
+
+    print("Created device mapper device '/dev/mapper/%s'." % mapper_name)
+
+
+def main(device, debug, password, mode, name):
     data = utils.read_image(device)
 
     fve = FVE(data)
@@ -490,17 +595,38 @@ def main(device, debug, password):
     if debug:
         print(fvek_open_key)
 
-    res_dir = os.path.dirname(os.path.realpath(device))
-    _decrypt_and_save_image(fve, debug, data, fvek_open_key, res_dir)
+    if mode == "image":
+        _decrypt_and_save_image(fve, debug, data, fvek_open_key, os.path.realpath(name))
+    elif mode == "dm":
+        _create_dm_device(fve, device, fvek_open_key, name)
 
 
 if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument("device", help="device (or image) to unlock")
+    argparser.add_argument("name", help="name for the dm device or ecnrypted image")
     argparser.add_argument("-v", "--verbose", dest="verbose", help="enable debug messages",
                            action="store_true")
+    argparser.add_argument("-m", "--mode", dest="mode", help="mode -- either 'image' or 'dm' (default is 'dm')",
+                           action="store")
     args = argparser.parse_args()
+
+    # default mode -- device mapper
+    if not args.mode:
+        args.mode = "dm"
+
+    if args.mode not in ["image", "dm"]:
+        print("Unknown mode '%s'" % args.mode, file=sys.stderr)
+        sys.exit(1)
+
+    if args.mode == "dm" and os.getuid() != 0:
+        print("Must be run as root in device mapper mode", file=sys.stderr)
+        sys.exit(1)
+
+    if args.mode == "image" and not os.access(os.path.realpath(args.name), os.W_OK):
+        print("Can't save decrypted image as '%s', not writable." % os.path.realpath(args.name), file=sys.stderr)
+        sys.exit(1)
 
     if not os.path.exists(args.device):
         print("Device '%s' doesn't exist." % args.device, file=sys.stderr)
@@ -508,4 +634,4 @@ if __name__ == '__main__':
 
     password = getpass.getpass(prompt="Password for '%s': " % args.device)
 
-    main(device=args.device, debug=args.verbose, password=password)
+    main(device=args.device, debug=args.verbose, password=password, mode=args.mode, name=args.name)

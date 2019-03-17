@@ -1,5 +1,6 @@
 import hashlib
 import struct
+import subprocess
 import uuid
 
 
@@ -42,6 +43,10 @@ def bytes_decode(data):
     return "'%s'" % data.decode("utf-8", errors="ignore")
 
 
+def bytes_as_hex_dmsetup(data):
+    return "".join('{:02x}'.format(x) for x in data)
+
+
 # print
 def _decode_and_replace(data):
     result = ""
@@ -74,6 +79,18 @@ def read_image(image):
         data = f.read()
 
     return data
+
+
+def run_command(command):
+    res = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE)
+
+    out, err = res.communicate()
+    if res.returncode != 0:
+        output = out.decode().strip() + "\n\n" + err.decode().strip()
+    else:
+        output = out.decode().strip()
+    return (res.returncode, output)
 
 
 # passphrase
