@@ -1,3 +1,8 @@
+import argparse
+import getpass
+import os
+import sys
+
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from Cryptodome.Cipher import AES
@@ -411,18 +416,19 @@ def _decrypt_data(key, data, iv_offset):
 
     return decrypted
 
-def main():
-    data = utils.read_image(IMAGE)
+def main(device, debug, password):
+    data = utils.read_image(device)
 
     fve = FVE(data)
-    print(fve)
+    if debug:
+        print(fve)
 
     vmks = fve.vmks
     fvek = fve.fvek
 
     # get the VMK protected by password and calculate VMK key from it
     pw_vmk = next(v for v in vmks if v.is_password_protected)
-    pw_vmk_key = utils.get_key_from_password(constants.PASSWORD, pw_vmk.salt)
+    pw_vmk_key = utils.get_key_from_password(password, pw_vmk.salt)
 
     # decrypt the VMK
     encryption_suite = AES.new(pw_vmk_key, AES.MODE_CCM, pw_vmk.aes_key.raw_nonce)
@@ -434,24 +440,27 @@ def main():
     decrypted_data = encryption_suite.decrypt_and_verify(fvek.key, received_mac_tag=fvek.mac_tag)
 
     fvek_open_key = UnecryptedKey(decrypted_data)
-    print(fvek_open_key)
+
+    if debug:
+        print(fvek_open_key)
 
     # first data block
     first_block = fve.volume_header_block
     data_block = data[first_block.data_offset:(first_block.data_offset + constants.SECTOR_SIZE)]
 
-    print("\033[1mFirst sector (encrypted):\033[0m")
-    utils.pprint_bytes(data_block)
-
-    print()
+    if debug:
+        print("\033[1mFirst sector (encrypted):\033[0m")
+        utils.pprint_bytes(data_block)
+        print()
 
     # decrypted first data block
     decrypted_data = _decrypt_data(fvek_open_key.key,
                                    data_block,
                                    first_block.data_offset)
 
-    print("\033[1mFirst sector (decrypted):\033[0m")
-    utils.pprint_bytes(decrypted_data)
+    if debug:
+        print("\033[1mFirst sector (decrypted):\033[0m")
+        utils.pprint_bytes(decrypted_data)
 
     # decrypt whole "header" part
     decrypted_header = _decrypt_data(fvek_open_key.key,
@@ -478,4 +487,17 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("device", help="device (or image) to unlock")
+    argparser.add_argument("-v", "--verbose", dest="verbose", help="enable debug messages",
+                           action="store_true")
+    args = argparser.parse_args()
+
+    if not os.path.exists(args.device):
+        print("Device '%s' doesn't exist." % args.device, file=sys.stderr)
+        sys.exit(1)
+
+    password = getpass.getpass(prompt="Password for '%s': " % args.device)
+
+    main(device=args.device, debug=args.verbose, password=password)
