@@ -417,7 +417,7 @@ def _decrypt_data(key, data, iv_offset):
     return decrypted
 
 
-def _decrypt_and_save_image(fve, debug, data, fvek_open_key):
+def _decrypt_and_save_image(fve, debug, data, fvek_open_key, res_dir):
     # first data block
     first_block = fve.volume_header_block
     data_block = data[first_block.data_offset:(first_block.data_offset + constants.SECTOR_SIZE)]
@@ -455,11 +455,11 @@ def _decrypt_and_save_image(fve, debug, data, fvek_open_key):
         decrypted_everything[fve.volume_header_block.data_offset + i - 8192] = 0x00
 
     # write the decrypted file
-    with open("../data/decrypted.raw", "wb+") as f:
+    with open(os.path.join(res_dir, "decrypted.raw"), "wb+") as f:
         f.write(bytes(decrypted_header))
         f.write(bytes(decrypted_everything))
 
-    print("Decrypted image saved to '%s'." % os.path.realpath("../data/decrypted.raw"))
+    print("Decrypted image saved to '%s'." % os.path.join(res_dir, "decrypted.raw"))
 
 
 def main(device, debug, password):
@@ -490,7 +490,8 @@ def main(device, debug, password):
     if debug:
         print(fvek_open_key)
 
-    _decrypt_and_save_image(fve, debug, data, fvek_open_key)
+    res_dir = os.path.dirname(os.path.realpath(device))
+    _decrypt_and_save_image(fve, debug, data, fvek_open_key, res_dir)
 
 
 if __name__ == '__main__':
