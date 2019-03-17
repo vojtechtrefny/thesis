@@ -416,34 +416,8 @@ def _decrypt_data(key, data, iv_offset):
 
     return decrypted
 
-def main(device, debug, password):
-    data = utils.read_image(device)
 
-    fve = FVE(data)
-    if debug:
-        print(fve)
-
-    vmks = fve.vmks
-    fvek = fve.fvek
-
-    # get the VMK protected by password and calculate VMK key from it
-    pw_vmk = next(v for v in vmks if v.is_password_protected)
-    pw_vmk_key = utils.get_key_from_password(password, pw_vmk.salt)
-
-    # decrypt the VMK
-    encryption_suite = AES.new(pw_vmk_key, AES.MODE_CCM, pw_vmk.aes_key.raw_nonce)
-    decrypted_data = encryption_suite.decrypt_and_verify(pw_vmk.aes_key.key, received_mac_tag=pw_vmk.aes_key.mac_tag)
-    vmk_open_key1 = UnecryptedKey(decrypted_data)
-
-    # and use it to decrypt the FVEK
-    encryption_suite = AES.new(vmk_open_key1.key, AES.MODE_CCM, fvek.raw_nonce)
-    decrypted_data = encryption_suite.decrypt_and_verify(fvek.key, received_mac_tag=fvek.mac_tag)
-
-    fvek_open_key = UnecryptedKey(decrypted_data)
-
-    if debug:
-        print(fvek_open_key)
-
+def _decrypt_and_save_image(fve, debug, data, fvek_open_key):
     # first data block
     first_block = fve.volume_header_block
     data_block = data[first_block.data_offset:(first_block.data_offset + constants.SECTOR_SIZE)]
@@ -484,6 +458,39 @@ def main(device, debug, password):
     with open("../data/decrypted.raw", "wb+") as f:
         f.write(bytes(decrypted_header))
         f.write(bytes(decrypted_everything))
+
+    print("Decrypted image saved to '%s'." % os.path.realpath("../data/decrypted.raw"))
+
+
+def main(device, debug, password):
+    data = utils.read_image(device)
+
+    fve = FVE(data)
+    if debug:
+        print(fve)
+
+    vmks = fve.vmks
+    fvek = fve.fvek
+
+    # get the VMK protected by password and calculate VMK key from it
+    pw_vmk = next(v for v in vmks if v.is_password_protected)
+    pw_vmk_key = utils.get_key_from_password(password, pw_vmk.salt)
+
+    # decrypt the VMK
+    encryption_suite = AES.new(pw_vmk_key, AES.MODE_CCM, pw_vmk.aes_key.raw_nonce)
+    decrypted_data = encryption_suite.decrypt_and_verify(pw_vmk.aes_key.key, received_mac_tag=pw_vmk.aes_key.mac_tag)
+    vmk_open_key1 = UnecryptedKey(decrypted_data)
+
+    # and use it to decrypt the FVEK
+    encryption_suite = AES.new(vmk_open_key1.key, AES.MODE_CCM, fvek.raw_nonce)
+    decrypted_data = encryption_suite.decrypt_and_verify(fvek.key, received_mac_tag=fvek.mac_tag)
+
+    fvek_open_key = UnecryptedKey(decrypted_data)
+
+    if debug:
+        print(fvek_open_key)
+
+    _decrypt_and_save_image(fve, debug, data, fvek_open_key)
 
 
 if __name__ == '__main__':
