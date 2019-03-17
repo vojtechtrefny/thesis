@@ -279,6 +279,7 @@ class FVE():
         self._entries = []
 
         self._metadata_size = 0
+        self._device_size = 0
 
         self._parse()
 
@@ -303,6 +304,7 @@ class FVE():
             self._metadata_starts.append(block_header_start)
 
         self._metadata_size = utils.le_decode_uint32(self.header[0:4])
+        self._device_size = utils.le_decode_uint64(self._metadata_block_headers[0][16:24])
 
     def _verify_headers(self):
         # we have three headers, just make sure all of them are the same
@@ -545,10 +547,8 @@ def _create_dm_device(fve, device, fvek_open_key, mapper_name):
     start += size
     table += r"'\\n'"
 
-    device_size = 104857600  # FIXME
-
     # fourth (and last) part of the data
-    size = int(device_size / constants.SECTOR_SIZE) - start
+    size = int(fve._device_size / constants.SECTOR_SIZE) - start
     table += crypt_template.format(start=start,
                                    size=size,
                                    key=utils.bytes_as_hex_dmsetup(fvek_open_key.key),
