@@ -13,9 +13,6 @@ import headers
 import utils
 
 
-IMAGE = "../data/image1.raw"
-
-
 class VMK():
     """Object representing BitLocker VMK"""
 
