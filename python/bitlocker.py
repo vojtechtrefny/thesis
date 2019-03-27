@@ -266,6 +266,37 @@ def _print_info_from_fve_header(fve_header):
     print("Creation time:\t\t%s" % created)
 
 
+class BitLockerHeader():
+    """Object representing BitLocker device header (first 512 B)"""
+
+    def __init__(self, raw_data):
+        self.raw_data = raw_data
+
+        self.signature = self.raw_data[3:11]
+        if self.signature != constants.BD_SIGNATURE:
+            raise RuntimeError("Unsupported/unknow device.")
+
+        self.guid = utils.le_decode_uuid(self.raw_data[160:176])
+
+        # get offsets of FVE metadata blocks
+        self.fve_metadata_offsets = []
+        for offset in constants.FVE_METADATA_BLOCK_HEADER_OFFSETS:
+            decoded_offset = utils.le_decode_uint64(self.raw_data[offset:(offset + constants.FVE_METADATA_BLOCK_HEADER_OFFSET_LEN)])
+            self.fve_metadata_offsets.append(decoded_offset)
+
+    def __str__(self):
+        s = "BitLocker encrypted device\n"
+        s += "GUID:\t%s\n" % self.guid
+
+        return s
+
+    def debug_print(self):
+        for item in headers.BDE_HEADER:
+            item_data = self.raw_data[item[0]:(item[0] + item[1])]
+
+            print("\033[1m%s:\033[0m %s %s" % (item[2], utils.bytes_as_hex(item_data), utils.bytes_decode(item_data)))
+
+
 class FVE():
     """Object representing BitLocker FVE headers"""
 
@@ -569,6 +600,8 @@ def _create_dm_device(fve, device, fvek_open_key, mapper_name):
 
 def main(device, debug, password, mode, name):
     data = utils.read_image(device)
+
+    header = BitLockerHeader(data)
 
     fve = FVE(data)
     if debug:
