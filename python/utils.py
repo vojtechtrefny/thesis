@@ -74,9 +74,10 @@ def pprint_bytes(data):
 
 
 # misc
-def read_image(image):
-    with open(image, "rb") as f:
-        data = f.read()
+def read_from_device(path, start, count):
+    with open(path, "rb") as f:
+        f.seek(start)
+        data = f.read(count)
 
     return data
 

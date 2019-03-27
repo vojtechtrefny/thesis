@@ -269,8 +269,11 @@ def _print_info_from_fve_header(fve_header):
 class BitLockerHeader():
     """Object representing BitLocker device header (first 512 B)"""
 
-    def __init__(self, raw_data):
-        self.raw_data = raw_data
+    def __init__(self, device):
+        self.device = device
+
+        # read header from the device
+        self.raw_data = utils.read_from_device(device, 0, constants.BDE_HEADER_SIZE)
 
         self.signature = self.raw_data[3:11]
         if self.signature != constants.BD_SIGNATURE:
@@ -300,8 +303,10 @@ class BitLockerHeader():
 class FVE():
     """Object representing BitLocker FVE headers"""
 
-    def __init__(self, raw_data):
-        self.raw_data = raw_data
+    def __init__(self, device, bde_header):
+
+        self.device = device
+        self.bde_header = bde_header
 
         self._metadata_block_headers = []
         self._metadata_headers = []
@@ -321,17 +326,21 @@ class FVE():
 
     def _parse_headers(self):
         # there actually three copies of the FVE, just go throught all of them
-        for offset in constants.FVE_METADATA_BLOCK_HEADER_OFFSETS:
-            decoded_offset = utils.le_decode_uint64(self.raw_data[offset:(offset + constants.FVE_METADATA_BLOCK_HEADER_OFFSET_LEN)])
+        for offset in self.bde_header.fve_metadata_offsets:
+            block_header_start = offset
+            block_header_end = offset + constants.FVE_METADATA_BLOCK_HEADER_LEN
 
-            block_header_start = decoded_offset
-            block_header_end = decoded_offset + constants.FVE_METADATA_BLOCK_HEADER_LEN
-            self._metadata_block_headers.append(self.raw_data[block_header_start:block_header_end])
+            # read the metadata block header (64 bytes)
+            fve_metadata_block = utils.read_from_device(self.device,
+                                                        block_header_start,
+                                                        constants.FVE_METADATA_BLOCK_HEADER_LEN)
+            self._metadata_block_headers.append(fve_metadata_block)
 
-            metadata_header_start = block_header_end
-            metadata_header_end = metadata_header_start + constants.FVE_METADATA_HEADER_LEN
-            self._metadata_headers.append(self.raw_data[metadata_header_start:metadata_header_end])
-
+            # read the metadata header (48 bytes starting immediately after metadata block header)
+            fve_metadata_header = utils.read_from_device(self.device,
+                                                         block_header_end,
+                                                         constants.FVE_METADATA_HEADER_LEN)
+            self._metadata_headers.append(fve_metadata_header)
             self._metadata_starts.append(block_header_start)
 
         self._metadata_size = utils.le_decode_uint32(self.header[0:4])
@@ -346,21 +355,27 @@ class FVE():
             raise RuntimeError("FVE metadata headers mismatch")
 
     def _get_metadata_entries(self):
-        # metadata entries just start after every FVE header and ends at start of
-        # the next one
-        start = self._metadata_starts[0] + constants.FVE_METADATA_BLOCK_HEADER_LEN + constants.FVE_METADATA_HEADER_LEN
-        end = self._metadata_starts[0] + constants.FVE_METADATA_BLOCK_HEADER_LEN + constants.FVE_METADATA_HEADER_LEN + self._metadata_size
+        # metadata entries just start after every FVE header, we read entries
+        # from the first FVE block, because we just checked all three are same
+        entry_start = self._metadata_starts[0] + constants.FVE_METADATA_BLOCK_HEADER_LEN + constants.FVE_METADATA_HEADER_LEN
+
+        entries_data = utils.read_from_device(self.device,
+                                              entry_start,
+                                              self._metadata_size)
 
         # we don't know how many entries there are, so just read until there is
         # at least two bytes to read (entry lenght)
+        start = 0
+        end = self._metadata_size
+
         while (end - start) > 2:
-            metadata_entry_len = utils.le_decode_uint8(self.raw_data[start:(start + 2)])
+            metadata_entry_len = utils.le_decode_uint8(entries_data[start:(start + 2)])
 
             # no more entries
             if metadata_entry_len == 0:
                 break
 
-            entry = MetadataEntry(self.raw_data[start:(start + metadata_entry_len)])
+            entry = MetadataEntry(entries_data[start:(start + metadata_entry_len)])
             self._entries.append(entry)
 
             start += metadata_entry_len
@@ -450,7 +465,9 @@ def _decrypt_data(key, data, iv_offset):
     return decrypted
 
 
-def _decrypt_and_save_image(fve, debug, data, fvek_open_key, res_file):
+def _decrypt_and_save_image(fve, debug, device, fvek_open_key, res_file):
+    data = utils.read_from_device(device, 0, fve._device_size)
+
     # first data block
     first_block = fve.volume_header_block
     data_block = data[first_block.data_offset:(first_block.data_offset + constants.SECTOR_SIZE)]
@@ -599,11 +616,10 @@ def _create_dm_device(fve, device, fvek_open_key, mapper_name):
 
 
 def main(device, debug, password, mode, name):
-    data = utils.read_image(device)
+    # read first 512 bytes and parse bitlocker header
+    header = BitLockerHeader(device)
 
-    header = BitLockerHeader(data)
-
-    fve = FVE(data)
+    fve = FVE(device, header)
     if debug:
         print(fve)
 
@@ -629,7 +645,7 @@ def main(device, debug, password, mode, name):
         print(fvek_open_key)
 
     if mode == "image":
-        _decrypt_and_save_image(fve, debug, data, fvek_open_key, os.path.realpath(name))
+        _decrypt_and_save_image(fve, debug, device, fvek_open_key, os.path.realpath(name))
     elif mode == "dm":
         _create_dm_device(fve, device, fvek_open_key, name)
 
