@@ -465,12 +465,27 @@ def _decrypt_data(key, data, iv_offset):
     return decrypted
 
 
-def _decrypt_and_save_image(fve, debug, device, fvek_open_key, res_file):
-    data = utils.read_from_device(device, 0, fve._device_size)
+def _read_and_decrypt_data(device, start, count, key, iv_offset):
+    """ Read the device sector by sector and decrypt it """
+    decrypted = bytearray()
 
+    with open(device, "rb") as f:
+        f.seek(start)
+
+        for i in range(0, count, constants.SECTOR_SIZE):
+            data = f.read(constants.SECTOR_SIZE)
+            decrypted_data = _decrypt_data(key, data, iv_offset + i)
+            decrypted.extend(bytearray(decrypted_data))
+
+    return decrypted
+
+
+def _decrypt_and_save_image(fve, debug, device, fvek_open_key, res_file):
     # first data block
     first_block = fve.volume_header_block
-    data_block = data[first_block.data_offset:(first_block.data_offset + constants.SECTOR_SIZE)]
+    data_block = utils.read_from_device(device,
+                                        first_block.data_offset,
+                                        constants.SECTOR_SIZE)
 
     if debug:
         print("\033[1mFirst sector (encrypted):\033[0m")
@@ -487,12 +502,15 @@ def _decrypt_and_save_image(fve, debug, device, fvek_open_key, res_file):
         utils.pprint_bytes(decrypted_data)
 
     # decrypt whole "header" part
+    header_data = utils.read_from_device(device,
+                                         first_block.data_offset,
+                                         first_block.block_size)
     decrypted_header = _decrypt_data(fvek_open_key.key,
-                                     data[first_block.data_offset:(first_block.data_offset + first_block.block_size)],
+                                     header_data,
                                      first_block.data_offset)
 
     # decrypt everything
-    decrypted_everything = _decrypt_data(fvek_open_key.key, data[8192:], 8192)
+    decrypted_everything = _read_and_decrypt_data(device, 8192, fve._device_size - 8192, fvek_open_key.key, 8192)
 
     # now replace bitlocker metadata with zeroes
     # - 64k after each fve header start
