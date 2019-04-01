@@ -7,6 +7,9 @@ data/
 
 # latex
 *.aux
+*.bbl
+*.blg
+*.listing
 *.loa
 *.lof
 *.log
@@ -17,3 +20,4 @@ data/
 *.synctex.*
 *.toc
 *.vrb
+*.xmpi
