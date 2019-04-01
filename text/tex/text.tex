@@ -27,7 +27,7 @@ Struktura NTFS hlavičky je převzata z \cite{Carrier2005}, struktura BitLocker 
 
 \begin{table}[h]
 \catcode`\-=12
-\captionsetup{width=1\linewidth}
+\captionsetup{width=0.65\linewidth}
 \caption{Porování položek hlaviček BitLocker a NTFS}
 \label{tab:bitlocker-header}
 \begin{center}
@@ -102,9 +102,105 @@ Pro další práci s BitLockerem není většina položek hlavičky zajímavá. 
 
 Umístění všech výše zmíněných \uv{důležitých} částí BitLocker hlavičky je zobrazeno na výpisu\todo{TODO: Jak tomu sakra říkat} \ref{lst:bitlocker-header}.
 
+
 \n{3}{FVE metadata}
 
-\n{2}{Klíče}
+Samotná výše popsaná hlavička formátu BitLocker neobsahuje o samotném BitLockeru téměř žádné informace. Slouží především pro rychlou identifikaci zařízení jako zařízení šifrovaného pomocí technologie BitLocker. Všechny informace potřebné pro práci s tímto zařízením, tedy především způsob uložení dat, jejich umístění, způsob jakým jsou šifrovány a hlavně klíč pro jejich (de)šifrování je uložený na třech různých místech\footnote{Na offsetech přibližně ve 33 \%, 44 \% a 55 \% u testovaných BitLocker zařízeních.} definovaných v hlavičce. Jedná se o tři identické kopie\footnote{Tři kopie jsou zvoleny pravděpodobně jako záloha pro případ náhodného poškození metadat. Vzhledem k tomu, že bez kompletní nepoškozené kopie těchto metadat není možné data na zařízení dešifrovat, je vícenásobná záloha na místě.} takzvaných \emph{FVE metadat}.
+
+FVE metadata se skládají z celkem tří částí -- hlavičky FVE bloku (\emph{FVE metadata block header}), samotné FVE hlavičky (\emph{FVE metadata header}) a různého množství FVE záznamů (\emph{FVE metadata entry}, které obsahují samotné klíče a další důležité informace\cite{j2YgJeTq3IrWJRcd}\footnote{Toto dělení zavádí Joachim Metz v \cite{j2YgJeTq3IrWJRcd}. Teoreticky by se daly dvě první části metadat spojit, protože na disku se nachází vždy hned za sebou, ale rozdělení dává smysl, protože první část se týká popisu samotných metadat (signatura, verze, umístění všech tří bloků), zatímco druhá část už obsahuje samotná metadata (GUID, čas vytvoření, použitý šifrovací algoritmus).}.
+
+Důležité položky v obou hlavičkách, jejich velikosti a offsety (vztažené vůči začátku dané hlavičky) jsou uvedeny v tabulce \ref{tab:fve-header}. Kompletní struktura obou hlaviček je součástí přílohy \todo{TODO: odkaz na přílohu}.
+
+\tab{Zjednodušená struktura FVE metadat}{tab:fve-header}{0.65}{|l|l|l|}{
+  \hline
+   \multicolumn{3}{|c|}{\textbf{Hlavička FVE bloku}} \\ \hline
+   offset & velikost & popis  \\ \hline
+   0 & 8 & signatura (\texttt{-FVE-FS-}) \\ \hline
+   10 & 2 & verze (1 nebo 2) \\ \hline
+   32 & 8 & offset první kopie FVE metadat \\ \hline
+   40 & 8 & offset druhé kopie FVE metadat \\ \hline
+   48 & 8 & offset třetí kopie FVE metadat  \\ \hline
+   \multicolumn{3}{}{} \\ \hline
+   \multicolumn{3}{|c|}{\textbf{FVE hlavička}} \\ \hline
+   0 & 4 & velikost metadat (včetně záznamů) \\ \hline
+   16 & 16 & GUID \\ \hline
+   36 & 4 & šifrovací algoritmus \\ \hline
+   40 & 8 & datum a čas vytvoření \\ \hline
+}
+
+Mezi pro nás zajímavé položky v hlavičce patří její celková velikost (včetně velikosti samotné hlavičky a velikosti za ní následujícíh záznamů), šifrovací algoritmus použitý pro zašifrování dat uložených na disku (možné algoritmy jsou popsány v části \ref{sec:algorithms}) a v některých případech může být užitečný i čas vytvoření, který je uložen ve formátu \texttt{FILETIME}\footnote{FILETIME je ve skutečnosti struktura sestávající ze dvou 32bit integer hodnot, které dohromady udávají počet 100 nanosekundových intervalů, které k danému datu uplynuly od 1. ledna 1601.\cite{Zxwr6wjYZUQ6z8Yp}}.
+
+\n{3}{FVE záznamy}
+
+Za výše uvedenou hlavičkou se nechází blíže nespecifikované množství FVE záznamů. Ty slouží v podstatě jako key-value úložiště pro jakékoli další \uv{informace}, které jsou pro práci s BitLockerem potřebné. Tím, že není třeba předem určeno, kolik takových záznamů bude za hlavičkou uloženo, je možné přidávat nové položky při zachování zpětné kompatibility\footnote{Celková největší možná velikost FVE metadat je 64 KiB (alespoň tedy tolik je pro FVEm metadata vyhrazeno na vytvořených BitLocker zařízeních), teoreticky je tedy možné mít až 64 KiB - 112 B metadat.}.
+
+Jelikož známe celkovou velikost FVE metadat (je uvedena v hlavičce, viz tabulka \ref{tab:fve-header}) a celková velikosti hlaviček FVE metadat je pevná (64 a 48 bajtů), pro přečtení všech záznamů stačí číst data ve smyččce, dokud nedojdeme na konec metadat, nebo dokud následující záznam nemá nulovou velikost.
+
+Struktutra FVE je relativně jednoduchá a je popsaná v tabulce \ref{tab:fve-entry}. Důležitou součástí je velikost záznamu, protože podle svého typu může mít různou délku.
+
+\tab{Struktura FVE záznamu}{tab:fve-entry}{0.65}{|l|l|l|}{
+  \hline
+   offset & velikost & popis  \\ \hline
+   0 & 2 & velikost záznamu \\ \hline
+   2 & 2 & typ záznamu \\ \hline
+   4 & 2 & typ hodnoty záznamu \\ \hline
+   6 & 2 & verze (1) \\ \hline
+   8 &  & data  \\ \hline
+}
+
+Typ a hodnota označují, co je v daném záznamu uloženo. Známé typy a hodnoty jsou popsány v tabulce \ref{tab:fve-entry-types}. U typů se typicky jedná buď o klíč (FVEK, VMK) nebo obecnou property, hodnota pak dále specifikuje, jak je daný typ uložen (zašifrovaný klíč, unicode string).
+
+Způsob uložení dat záleží na tom, jaká konkrétní data jsou v záznamu uložena. U \uv{jednoduchých} záznamů, jako je například popisek je v datech uložen textový řetězec uložený v kódování UTF-16, u \uv{složitějších} záznamů, jako jsou například klíče, mají data vlastní strukturu včetně dalších záznamů.
+
+\begin{table}[h]
+\catcode`\-=12
+\captionsetup{width=0.65\linewidth}
+\caption{Známé typy FVE záznamů}
+\label{tab:fve-entry-types}
+\begin{center}
+\centering
+\begin{tabular}{|l|l|c|l|l|}
+  \cline{1-2} \cline{4-5}
+   \multicolumn{2}{|c|}{\textbf{Typy}} &  & \multicolumn{2}{|c|}{\textbf{Hodnoty}} \\ \cline{1-2} \cline{4-5}
+   typ & popis &  & typ & popis \\ \cline{1-2} \cline{4-5}
+   0 & property & & 0 & smazáno \\ \cline{1-2} \cline{4-5}
+   1 & VMK & & 1 & klíč \\ \cline{1-2} \cline{4-5}
+   2 & FVEK & & 2 & string \\ \cline{1-2} \cline{4-5}
+   7 & popisek & & 5 & AES-CCM šifrovaný klíč \\ \cline{1-2} \cline{4-5}
+   15 & hlavička disku\footnotemark & & 6 & TPM klíč \\ \cline{1-2} \cline{4-5}
+   \multicolumn{2}{c}{} & & 8 & VMK \\ \cline{4-5}
+   \multicolumn{2}{c}{} & & 15 & offset a velikost \\ \cline{4-5}
+   
+
+\end{tabular}
+\end{center}
+\end{table}
+
+\footnotetext{Umístění a velikost NTFS hlavičky otevřeného zařízení. Odpovídá hodnotě 15. Podrobnější informace o umístění NTFS hlavičky na šifrovaném zařízení jsou v části \ref{sec:data-map}.}
+
+Příklad \uv{jednoduchého} záznamu je uveden na obrázku \ref{fig:fve-entry-desc}, kde vidíme záznam typu \emph{description}. Ten v podstatě obsahuje jméno počítače, na kterém bylo dané BitLocker zařízení vytvořeno a také datum vytvoření. Můžeme tedy vidět, že toto konkrétní BitLocker zařízení bylo vytvořeno na počítači \texttt{DESKTOP-NPM7RCA} a to 3. února 2019. Tato informace je uloženo jako standardní string v kódování UTF-16. Kromě tohoto stringu jsou pak na obrázku zvýrazněny i další údaje: velikost celého záznamu (64 bajtů), jeho typ (7 -- popisek) a hodnota (2 -- string) a verze (1).
+
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+		\caption{Příklad FVE záznamu typu \uv{description} (popisek)}
+		\label{fig:fve-entry-desc}
+
+\begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
+02195070  $\textcolor{red}{40 00}$ $\textcolor{orange}{07 00}$ $\textcolor{yellow}{02 00}$ $\textcolor{green}{01 00}$  $\textcolor{blue}{44 00 45 00 53 00 4b 00}$ |@.......$\textcolor{blue}{D.E.S.K.}$|
+02195080  $\textcolor{blue}{54 00 4f 00 50 00 2d 00}$  $\textcolor{blue}{4e 00 50 00 4d 00 37 00}$ |$\textcolor{blue}{T.O.P.-.N.P.M.7.}$|
+02195090  $\textcolor{blue}{52 00 43 00 41 00 20 00}$  $\textcolor{blue}{47 00 3a 00 20 00 32 00}$ |$\textcolor{blue}{R.C.A. .G.:. .2.}$|
+021950a0  $\textcolor{blue}{2f 00 33 00 2f 00 32 00}$  $\textcolor{blue}{30 00 31 00 39 00}$ 00 00 |$\textcolor{blue}{/.3./.2.0.1.9.}$..|
+\end{lstlisting}
+
+\end{figure}
+
+U jednoduchého zařízení --- v našem případě USB flash disku --- se bude obvykle vyskytovat pouze pět záznamů a to již výše zmíněný popisek, dvojice záznamů typu VMK, jeden záznam typu FVEK (o obou více v části \ref{sec:keys} a jeden záznam obsahující informace o umístění hlavičky disku (o tomto záznamu více v části \ref{sec:data-map}).
+
+
+
+\n{2}{Klíče}\label{sec:keys}
 
 \n{3}{Volume Master Key}
 
@@ -112,9 +208,9 @@ Umístění všech výše zmíněných \uv{důležitých} částí BitLocker hla
 
 \n{2}{Šifrovaná data}
 
-\n{3}{Použité šifrovací algoritmy}
+\n{3}{Použité šifrovací algoritmy}\label{sec:algorithms}
 
-\n{3}{Způsob uložení data}
+\n{3}{Způsob uložení data}\label{sec:data-map}
 
 \n{3}{Postup při dešifrování}
 
