@@ -136,7 +136,7 @@ Důležité položky v obou hlavičkách, jejich velikosti a offsety (vztažené
 
 Mezi pro nás zajímavé položky v hlavičce patří její celková velikost (včetně velikosti samotné hlavičky a velikosti za ní následujícíh záznamů), šifrovací algoritmus použitý pro zašifrování dat uložených na disku (možné algoritmy jsou popsány v části \ref{sec:algorithms}) a v některých případech může být užitečný i čas vytvoření, který je uložen ve formátu \texttt{FILETIME}\footnote{FILETIME je ve skutečnosti struktura sestávající ze dvou 32bit integer hodnot, které dohromady udávají počet 100 nanosekundových intervalů, které k danému datu uplynuly od 1. ledna 1601.\cite{Zxwr6wjYZUQ6z8Yp}}.
 
-\n{3}{FVE záznamy}
+\n{3}{FVE záznamy}\label{sec:fve-metadata-entry}
 
 Za výše uvedenou hlavičkou se nechází blíže nespecifikované množství FVE záznamů. Ty slouží v podstatě jako key-value úložiště pro jakékoli další \uv{informace}, které jsou pro práci s BitLockerem potřebné. Tím, že není třeba předem určeno, kolik takových záznamů bude za hlavičkou uloženo, je možné přidávat nové položky při zachování zpětné kompatibility\footnote{Celková největší možná velikost FVE metadat je 64 KiB (alespoň tedy tolik je pro FVEm metadata vyhrazeno na vytvořených BitLocker zařízeních), teoreticky je tedy možné mít až 64 KiB - 112 B metadat.}.
 
@@ -204,13 +204,138 @@ Příklad \uv{jednoduchého} záznamu je uveden na obrázku \ref{fig:fve-entry-d
 
 U jednoduchého zařízení --- v našem případě USB flash disku --- se bude obvykle vyskytovat pouze pět záznamů a to již výše zmíněný popisek, dvojice záznamů typu VMK, jeden záznam typu FVEK (o obou více v části \ref{sec:keys} a jeden záznam obsahující informace o umístění hlavičky disku (o tomto záznamu více v části \ref{sec:data-map}).
 
-
-
 \n{2}{Klíče}\label{sec:keys}
+
+Pravděpodobně nejdůležitější součástí BitLocker hlavičky jsou šifrovací klíče. Ve FVE hlavičce nalezneme celkem dva typy klíčů --- Full Volume Encryption Key, neboli FVEK, a Volume Master Key, neboli VMK\footnote{Původní varianta BitLockeru má ještě jeden klíč --- TWEAK, ten je podrobnějí popsán v části .}\todo{TODO: link na část o odlišnotech ve starších verzích}. Uloženy jsou v metadatových záznamech odpovídajících typů a to samozřejmě nikoli v otevřené podobě, ale zašifrované.
+
+\n{3}{Full Volume Encryption Key}
+
+Full Volume Encryption Key (dále jen \uv{FVEK}) je nejdůležitějším klíčem pro celý BitLocker. Pomocí tohoto klíče jsou totiž zašifrovaná data uložená na disku. FVEK samotný nejde změnit\footnote{Bez kompletního přešifrování všech dat.} a v případě jeho poškození nebo náhodného smazání není možné uložená data nijak dešifrovat.
+
+FVEK je v metadatech uložen v záznamu typu \emph{FVEK} s hodnotou \emph{AES-CCM šifrovaný klíč} a je, jak hodnota naznačuje, zašifrován pomocí šifry AES-CCM (o této šifře a módu více v části \ref{sec:algorithms}), kdy je jako klíč použit VMK a jako inicializační vektor 0.
+
+\tab{Způsob uložení FVEK v metadatech}{tab:fvek-data}{0.65}{|l|l|l|}{
+  \hline
+   offset & velikost & popis  \\ \hline
+   0 & 8 & datum a čas vytvoření (jako FILETIME) \\ \hline
+   8 & 4 & nonce \\ \hline
+   12 & 16 & MAC tag \\ \hline
+   28 & 44\footnotemark & šifrovaný klíč \\ \hline
+}
+\footnotetext{Velikost šifrovaného klíče záleží na použité šifře --- 12 bajtů vždy připadne na informace o klíči a 32 bajtů v tomto případě připadá na samotný klíč, jelikož je použit 128bit AES.}
+
+Struktura dat pro FVEK v metadatovém záznamu je popsána v tabulce \ref{tab:fvek-data}. Kromě samotného klíče obsahují datum a čas jeho vytvoření a nonce\todo{TODO: najít definici a citaci}.
+
+Samotná zašifrovaná část klíče obsahuje kromě samotného klíče také další data o klíči samotném --- velikost, verze a šifrovací metoda použitá pro data zašifrovaná pomocí FVEK. Jejich struktura je popsána v tabulce \ref{tab:fvek-data-decrypted}.
+
+\tab{Obsah FVEK po dešifrování}{tab:fvek-data-decrypted}{0.65}{|l|l|l|}{
+  \hline
+   offset & velikost & popis  \\ \hline
+   0 & 4 & velikost \\ \hline
+   4 & 4 & verze (1)\footnotemark \\ \hline
+   8 & 4 & šifrovací metoda \\ \hline
+   12 & 32 & klíč \\ \hline
+}
+
+Na obrázku \ref{fig:fvek-decrypted} je pak vidět příklad dešifrovaného FVEK. Zvýrazněny jsou jeho celková velikost (44 bajtů), verze (1), šifrovací metoda (hex kód \texttt{0x8004} v tomto případě znamená 128bit AES-XTS) a následně samotný 128bit klíč.
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+		\caption{Dešifrovaný FVEK}
+		\label{fig:fvek-decrypted}
+
+\begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
+00000000  $\textcolor{red}{2c 00 00 00}$ $\textcolor{green}{01 00 00 00}$  $\textcolor{orange}{04 80 00 00}$ $\textcolor{blue}{a4 d0 11 64}$ |,..............d|
+00000010  $\textcolor{blue}{0c a0 df ec b2 4d a2 39}$  $\textcolor{blue}{b1 4e 4a b7 62 56 f2 e3}$ |.....M.9.NJ.bV..|
+00000020  $\textcolor{blue}{b2 27 54 40 91 21 0e 98}$  $\textcolor{blue}{aa 84 5f 52}$             |.'T@.!...._R|
+\end{lstlisting}
+
+\end{figure}
+
+\footnotetext{Některé zdroje \cite{j2YgJeTq3IrWJRcd} uvádějí verzi pouze jako 2 bajtovou a následující 2 bajty jako \uv{neznámé}. Vzhledem k tomu, že v jiných hlavičkách je verze v některých případech 4 bajtová a v některých 2 bajtová a že na testovacích zařízeních byly tyto dva bajty vždy nulové, domnívám se, že je pravděpodobnější, že verze je zde 4 bajtová.}
 
 \n{3}{Volume Master Key}
 
-\n{3}{Full Volume Encryption Key}
+Jak již bylo řečeno výše, FVEK je na disku uložen zašifrován pomocí Volume Master Key (dále jen \uv{VMK}). Ten je uložen také v metadatových záznamech v hlavičce a je také zašifrován. Narozdíl od FVEK, který je vždy uložen v metadatech v jediné kopii, VMK může být v metadatech uložen vícekrát, pokaždé \uv{jinak} zašifrovaný.
+
+Tento systém umožňuje, aby byl FVEK, jakožto hlavní a nejdůležitější klíč, uložen na disku pouze v jedné kopii, ale zároveň existovala možnost, jak mít pro jedno zařízení více různých hesel (respektive více různých způsobů odemčení daného zařízení). Pro přidání \uv{nového} hesla tak teoreticky stačí jednoduše znát alespoň jedno již existující, pomocí kterého se VMK dešifruje a následně uloží zašifrovaný pomocí nového hesla. Analogicky tak lze také snadno změnit heslo --- jak již bylo zmíněno výše, FVEK nejde změnit bez přešifrování celého zařízení, ale změna hesla díky tomuto systému znamená pouhé uložení nově zašifrovaného VMK.
+
+V odstavci výše je několikrát zmíněno \emph{heslo}, ale VMK může být chráněn více různými způsoby. Dokumentace BitLockeru \cite{Zxwr6wjYZUQ6z8Yo} zmiňuje celkem deset možných typů \emph{protektorů} klíčů v BitLockeru, které jsou zapsány v tabulce \ref{tab:vmk-protectors}.
+
+\tab{Možnosti ochrany VMK}{tab:vmk-protectors}{0.65}{|l|l|}{
+  \hline
+   hodnota & popis  \\ \hline
+   0 & neznámý/jiný \\ \hline
+   1 & TPM \\ \hline
+   2 & externí klíč \\ \hline
+   3 & číselné heslo \\ \hline
+   4 & TPM a PIN \\ \hline
+   5 & TPM klíč \\ \hline
+   6 & TPM, PIN a klíč \\ \hline
+   7 & veřejný klíč \\ \hline
+   8 & heslo \\ \hline
+   9 & TPM certifikát \\ \hline
+  10 & CryptoAPI Next Generation (CNG) \\ \hline
+}
+
+Z pohledu této práce je nejobvyklejším protektorem právě heslo, protože použití BitLocker zařízení v linuxovém prostředí se dá předpokládat primírně u flash disků, u nichž se používá ochrana heslem\footnote{Ochrana pomocí TPM nedává u přenosných disků smysl, protože TPM čipy jsou nedělitelnou součástí hardwaru.}.
+
+Pro každé vytvořené BitLocker se kromě \uv{primární} ochrany (v našem případě typicky hesla) vytváří ještě jeden VMK chráněný záložním heslem. Způsob ochrany je u něj stejný jako u VMK, který je chráněný heslem, rozdíl je v tom, že heslo zadává uživatel, kdežto záložní heslo je vygenerované a uživateli je při vytváření \uv{předáno} v podobě souboru, který obsahuje 48 čísel. \todo{TODO: citace}
+
+Struktura VMK, naznačená v tabulce \ref{tab:vmk-data}, je ovlivněna tím, že samotný klíč může být chráněn různými způsoby a je pro něj tedy třeba ukládat různá metadata a i samotný klíč může být třeba v některých případech ukládat v různých podobách.
+
+První část VMK struktury je v celku běžná --- obsahuje identifikátor klíče (GUID), čas vytvoření a typ ochrany. Další metadata jsou pak uložena jako záznamy, stejně jako u samotné FVE hlavičky (podrobněji v části \ref{sec:fve-metadata-entry} a tabulce \ref{tab:fve-entry}).
+
+\tab{Struktura VMK}{tab:vmk-data}{0.65}{|l|l|l|}{
+  \hline
+   offset & velikost & popis  \\ \hline
+   0 & 16 & GUID \\ \hline
+   16 & 9 & datum a čas vytvoření \\ \hline
+   24 & 2 & neznámé \\ \hline
+   26 & 2 & typ ochrany \\ \hline
+   28 &  & metadatové záznamy \\ \hline
+}
+
+Kompletní VMK klíč chráněný záložním heslem je zobrazen na obrázku \ref{fig:vmk-bpwprotected}. Zvýrazněno je GUID, typ ochrany (8 --- heslo) a dva \uv{připojené} záznamy, oba typu property, první obsahující sůl potřebnou pro odvození klíče potřebného pro dešifrování VMK ze záložního hesla (funkcionalita odvození klíče z hesla je popsána v části \todo{TODO: odkaz na část popisující KDF}) a druhá obsahující samotný klíč (textový výpis je debugovacím výstupem z nástroje vytvořeného v rámci praktické části).
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+		\caption{VMK chráněný záložním heslem}
+		\label{fig:vmk-bpwprotected}
+
+\begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
+00000000 $\textcolor{blue}{c1 56 2e 01 d6 4e 27 45}$  $\textcolor{blue}{8a bf 7a 9f 29 e0 b5 21}$  |.V...N'E..z.)..!|
+00000010 40 c5 cd 54 a0 bb d4 01  00 00 $\textcolor{red}{00 08}$ ac 00 00 00  |@..T............|
+00000020 03 00 01 00 00 10 00 00  $\textcolor{green}{46 ee b7 10 0e 43 4d d4}$  |........F....CM.|
+00000030 $\textcolor{green}{f1 84}$ a5 ab eb c6 21 f4  40 00 12 00 05 00 01 00  |....!...@.......|
+00000040 40 7d e5 52 a0 bb d4 01  04 00 00 00 72 b0 71 f4  |@}.R........r.q.|
+00000050 20 9e c9 8e b7 1b 5e 42  71 b5 bc 21 c6 57 9b 29  | .....^Bq..!.W.)|
+00000060 56 2c 92 ad db d7 73 75  a9 78 c2 94 c5 a5 07 d1  |V,....su.x......|
+00000070 62 61 0c 56 d8 ca 9d ac  50 00 13 00 05 00 01 00  |ba.V....P.......|
+00000080 40 7d e5 52 a0 bb d4 01  05 00 00 00 3e d9 ac 58  |@}.R........>..X|
+00000090 e6 86 ba ac 05 48 ea 0b  64 ee 77 7a b4 77 ba cb  |.....H..d.wz.w..|
+000000a0 c0 83 83 b0 7b ab 52 c7  0d 9e 8f 62 d7 cb a3 90  |....{.R....b....|
+000000b0 cc b8 8e 39 a4 be 8a 0a  5c 16 86 62 c9 64 81 4d  |...9....\..b.d.M|
+000000c0 91 9d 27 24 3a 8e a3 7c  50 00 00 00 05 00 01 00  |..'.:..|P.......|
+000000d0 40 7d e5 52 a0 bb d4 01  06 00 00 00 97 18 2f d6  |@}.R........../.|
+000000e0 83 de e7 63 0a fa 57 48  44 2b 66 90 $\textcolor{orange}{91 a0 ad e9}$  |...c..WHD+f.....|
+000000f0 $\textcolor{orange}{0c 08 e8 1e 3d 2f 7d 3b}$  $\textcolor{orange}{cc 9f ba e4 ed b5 6b c2}$  |....=/};......k.|
+00000100 $\textcolor{orange}{e1 a4 53 cf c5 60 2a 92}$  $\textcolor{orange}{2d c8 1d 85 10 b7 99 87}$  |..S..`*.-.......|
+00000110 $\textcolor{orange}{9d 1d 1e 36 46 40 6b e7}$                           |...6F@k.        |
+
+VMK
+	Identifier:	$\textcolor{blue}{012e56c1-4ed6-4527-8abf-7a9f29e0b521}$
+	Type:		$\textcolor{red}{VMK protected with recovery password}$
+	Salt:		$\textcolor{green}{46 ee b7 10 0e 43 4d d4 a5 ab eb c6 21 f4 f1 84}$
+	AES-CCM encrypted key
+		Nonce data:	2019-02-03 09:10:36.052000
+		Nonce counter:	6
+		Key:	 $\textcolor{orange}{91 a0 ad e9 0c 08 ... 1d 1e 36 46 40 6b e7}$
+\end{lstlisting}
+\end{figure}
+
 
 \n{2}{Šifrovaná data}
 
