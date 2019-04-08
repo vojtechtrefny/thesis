@@ -142,6 +142,7 @@ class MetadataEntry():
         self.entry_header = raw_data[0:8]
         self.entry_data = raw_data[8:]
 
+        self.size = utils.le_decode_uint8(self.entry_header[0:2])
         self.type = utils.le_decode_uint8(self.entry_header[2:4])
         self.value = utils.le_decode_uint8(self.entry_header[4:6])
 
@@ -154,6 +155,10 @@ class MetadataEntry():
         if self.is_volume_header:
             self.data_offset = utils.le_decode_uint64(self.entry_data[0:8])
             self.block_size = utils.le_decode_uint64(self.entry_data[8:16])
+
+    def __repr__(self):
+        return "MetadataEntry ('%s': '%s')" % (constants.FVE_ENTRY_TYPES[self.type],
+                                               constants.FVE_VALUE_TYPES[self.value])
 
     def __str__(self):
         if self.is_vmk:
@@ -173,9 +178,9 @@ class MetadataEntry():
                                                                     constants.FVE_VALUE_TYPES[self.value])
 
     def debug_print(self):
-        s = "Metadata entry:"
-        s += "\tType: %s" % constants.FVE_ENTRY_TYPES[self.type]
-        s += "\tValue: %s" % constants.FVE_VALUE_TYPES[self.value]
+        s = "Metadata entry:\n"
+        s += "\tType: %s\n" % constants.FVE_ENTRY_TYPES[self.type]
+        s += "\tValue: %s\n" % constants.FVE_VALUE_TYPES[self.value]
 
         print(s)
 
