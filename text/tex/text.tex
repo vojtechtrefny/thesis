@@ -204,13 +204,60 @@ Příklad \uv{jednoduchého} záznamu je uveden na obrázku \ref{fig:fve-entry-d
 
 U jednoduchého zařízení --- v našem případě USB flash disku --- se bude obvykle vyskytovat pouze pět záznamů a to již výše zmíněný popisek, dvojice záznamů typu VMK, jeden záznam typu FVEK (o obou více v části \ref{sec:keys} a jeden záznam obsahující informace o umístění hlavičky disku (o tomto záznamu více v části \ref{sec:data-map}).
 
-
-
 \n{2}{Klíče}\label{sec:keys}
+
+Pravděpodobně nejdůležitější součástí BitLocker hlavičky jsou šifrovací klíče. Ve FVE hlavičce nalezneme celkem dva typy klíčů --- Full Volume Encryption Key, neboli FVEK, a Volume Master Key, neboli VMK\footnote{Původní varianta BitLockeru má ještě jeden klíč --- TWEAK, ten je podrobnějí popsán v části .}\todo{TODO: link na část o odlišnotech ve starších verzích}. Uloženy jsou v metadatových záznamech odpovídajících typů a to samozřejmě nikoli v otevřené podobě, ale zašifrované.
+
+\n{3}{Full Volume Encryption Key}
+
+Full Volume Encryption Key (dále jen \uv{FVEK}) je nejdůležitějším klíčem pro celý BitLocker. Pomocí tohoto klíče jsou totiž zašifrovaná data uložená na disku. FVEK samotný nejde změnit\footnote{Bez kompletního přešifrování všech dat.} a v případě jeho poškození nebo náhodného smazání není možné uložená data nijak dešifrovat.
+
+FVEK je v metadatech uložen v záznamu typu \emph{FVEK} s hodnotou \emph{AES-CCM šifrovaný klíč} a je, jak hodnota naznačuje, zašifrován pomocí šifry AES-CCM (o této šifře a módu více v části \ref{sec:algorithms}), kdy je jako klíč použit VMK a jako inicializační vektor 0.
+
+\tab{Způsob uložení FVEK v metadatech}{tab:fvek-data}{0.65}{|l|l|l|}{
+  \hline
+   offset & velikost & popis  \\ \hline
+   0 & 8 & datum a čas vytvoření (jako FILETIME) \\ \hline
+   8 & 4 & nonce \\ \hline
+   12 & 16 & MAC tag \\ \hline
+   28 & 44\footnotemark & šifrovaný klíč \\ \hline
+}
+\footnotetext{Velikost šifrovaného klíče záleží na použité šifře --- 12 bajtů vždy připadne na informace o klíči a 32 bajtů v tomto případě připadá na samotný klíč, jelikož je použit 128bit AES.}
+
+Struktura dat pro FVEK v metadatovém záznamu je popsána v tabulce \ref{tab:fvek-data}. Kromě samotného klíče obsahují datum a čas jeho vytvoření a nonce\todo{TODO: najít definici a citaci}.
+
+Samotná zašifrovaná část klíče obsahuje kromě samotného klíče také další data o klíči samotném --- velikost, verze a šifrovací metoda použitá pro data zašifrovaná pomocí FVEK. Jejich struktura je popsána v tabulce \ref{tab:fvek-data-decrypted}.
+
+\tab{Obsah FVEK po dešifrování}{tab:fvek-data-decrypted}{0.65}{|l|l|l|}{
+  \hline
+   offset & velikost & popis  \\ \hline
+   0 & 4 & velikost \\ \hline
+   4 & 4 & verze (1)\footnotemark \\ \hline
+   8 & 4 & šifrovací metoda \\ \hline
+   12 & 32 & klíč \\ \hline
+}
+
+Na obrázku \ref{fig:fvek-decrypted} je pak vidět příklad dešifrovaného FVEK. Zvýrazněny jsou jeho celková velikost (44 bajtů), verze (1), šifrovací metoda (hex kód \texttt{0x8004} v tomto případě znamená 128bit AES-XTS) a následně samotný 128bit klíč.
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+		\caption{Dešifrovaný FVEK}
+		\label{fig:fvek-decrypted}
+
+\begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
+00000000  $\textcolor{red}{2c 00 00 00}$ $\textcolor{green}{01 00 00 00}$  $\textcolor{orange}{04 80 00 00}$ $\textcolor{blue}{a4 d0 11 64}$ |,..............d|
+00000010  $\textcolor{blue}{0c a0 df ec b2 4d a2 39}$  $\textcolor{blue}{b1 4e 4a b7 62 56 f2 e3}$ |.....M.9.NJ.bV..|
+00000020  $\textcolor{blue}{b2 27 54 40 91 21 0e 98}$  $\textcolor{blue}{aa 84 5f 52}$             |.'T@.!...._R|
+\end{lstlisting}
+
+\end{figure}
+
+\footnotetext{Některé zdroje \cite{j2YgJeTq3IrWJRcd} uvádějí verzi pouze jako 2 bajtovou a následující 2 bajty jako \uv{neznámé}. Vzhledem k tomu, že v jiných hlavičkách je verze v některých případech 4 bajtová a v některých 2 bajtová a že na testovacích zařízeních byly tyto dva bajty vždy nulové, domnívám se, že je pravděpodobnější, že verze je zde 4 bajtová.}
 
 \n{3}{Volume Master Key}
 
-\n{3}{Full Volume Encryption Key}
+Jak již bylo řečeno výše, FVEK je na disku uložen zašifrován pomocí Volume Master Key (dále jen \uv{VMK}). Ten je uložen také v metadatových záznamech v hlavičce a je také zašifrován. Narozdíl od FVEK, který je vždy uložen v metadatech v jediné kopii, jen VMK uložen v metadatech vícekrát, pokaždé \uv{jinak} zašifrovaný.
 
 \n{2}{Šifrovaná data}
 
