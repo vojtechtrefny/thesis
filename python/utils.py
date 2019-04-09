@@ -70,7 +70,14 @@ def pprint_bytes(data):
         index = '{:08x}'.format(i * 16)
         ashex = bytes_as_hex(chunk)
         decoded = _decode_and_replace(chunk)
-        print("%s: %s  %s  |%s %s|" % (index, ashex[:8], ashex[8:], decoded[:8], decoded[8:]))
+
+        # add spaces for shorter lines
+        if len(ashex) < 48:
+            ashex += " " * (48 - len(ashex))
+        if len(decoded) < 16:
+            decoded += " " * (16 - len(decoded))
+
+        print("%s: %s %s |%s%s|" % (index, ashex[:23], ashex[23:], decoded[:8], decoded[8:]))
 
 
 # misc
