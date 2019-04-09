@@ -66,9 +66,6 @@ Struktura NTFS hlavičky je převzata z \cite{Carrier2005}, struktura BitLocker 
 \begin{figure}[h]
 		\centering
 		\captionsetup{width=0.65\linewidth}
-		\caption{BitLocker hlavička se zvýrazněnou signaturou, GUID a trojicí offsetů FVE metadat}
-		\label{fig:bitlocker-header}
-
 \begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
 00000000  eb 58 90 $\textcolor{blue}{2d 46 56 45 2d}$  46 53 2d 00 02 08 00 00 |.X.$\textcolor{blue}{-FVE-FS-}$.....|
 00000010  00 00 00 00 00 f8 00 00  3f 00 ff 00 00 28 03 00 |........?....(..|
@@ -99,7 +96,8 @@ Struktura NTFS hlavičky je převzata z \cite{Carrier2005}, struktura BitLocker 
 000001f0  ff ff ff ff ff ff ff ff  ff ff ff 00 1f 2c 55 aa |.............,U.|
 00000200
 \end{lstlisting}
-
+		\caption{BitLocker hlavička se zvýrazněnou signaturou, GUID a trojicí offsetů FVE metadat}
+		\label{fig:bitlocker-header}
 \end{figure}
 
 Z pohledu identifkace BitLocker zařízení je nejdůležitější částí hlavičky 8 bajtů na offsetu 3, které se u NTFS formátu nazývají \emph{OEM název} a které slouží pro rychlou identifikace zařízení. V linuxových systémech se podobné identifikátory obvykle nazývají \emph{signatura}. \todo{TODO: To by asi chtělo citaci.} Pro BitLocker formát je (u všech verzí) signatura v ASCII podobě \texttt{-FVE-FS-}.
@@ -190,16 +188,14 @@ Příklad \uv{jednoduchého} záznamu je uveden na obrázku \ref{fig:fve-entry-d
 \begin{figure}[h]
 		\centering
 		\captionsetup{width=0.65\linewidth}
-		\caption{Příklad FVE záznamu typu \uv{description} (popisek)}
-		\label{fig:fve-entry-desc}
-
 \begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
 02195070  $\textcolor{red}{40 00}$ $\textcolor{orange}{07 00}$ $\textcolor{yellow}{02 00}$ $\textcolor{green}{01 00}$  $\textcolor{blue}{44 00 45 00 53 00 4b 00}$ |@.......$\textcolor{blue}{D.E.S.K.}$|
 02195080  $\textcolor{blue}{54 00 4f 00 50 00 2d 00}$  $\textcolor{blue}{4e 00 50 00 4d 00 37 00}$ |$\textcolor{blue}{T.O.P.-.N.P.M.7.}$|
 02195090  $\textcolor{blue}{52 00 43 00 41 00 20 00}$  $\textcolor{blue}{47 00 3a 00 20 00 32 00}$ |$\textcolor{blue}{R.C.A. .G.:. .2.}$|
 021950a0  $\textcolor{blue}{2f 00 33 00 2f 00 32 00}$  $\textcolor{blue}{30 00 31 00 39 00}$ 00 00 |$\textcolor{blue}{/.3./.2.0.1.9.}$..|
 \end{lstlisting}
-
+		\caption{Příklad FVE záznamu typu \uv{description} (popisek)}
+		\label{fig:fve-entry-desc}
 \end{figure}
 
 U jednoduchého zařízení --- v našem případě USB flash disku --- se bude obvykle vyskytovat pouze pět záznamů a to již výše zmíněný popisek, dvojice záznamů typu VMK, jeden záznam typu FVEK (o obou více v části \ref{sec:keys} a jeden záznam obsahující informace o umístění hlavičky disku (o tomto záznamu více v části \ref{sec:data-map}).
@@ -242,15 +238,13 @@ Na obrázku \ref{fig:fvek-decrypted} je pak vidět příklad dešifrovaného FVE
 \begin{figure}[h]
 		\centering
 		\captionsetup{width=0.65\linewidth}
-		\caption{Dešifrovaný FVEK}
-		\label{fig:fvek-decrypted}
-
 \begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
 00000000  $\textcolor{red}{2c 00 00 00}$ $\textcolor{green}{01 00 00 00}$  $\textcolor{orange}{04 80 00 00}$ $\textcolor{blue}{a4 d0 11 64}$ |,..............d|
 00000010  $\textcolor{blue}{0c a0 df ec b2 4d a2 39}$  $\textcolor{blue}{b1 4e 4a b7 62 56 f2 e3}$ |.....M.9.NJ.bV..|
 00000020  $\textcolor{blue}{b2 27 54 40 91 21 0e 98}$  $\textcolor{blue}{aa 84 5f 52}$             |.'T@.!...._R|
 \end{lstlisting}
-
+		\caption{Dešifrovaný FVEK}
+		\label{fig:fvek-decrypted}
 \end{figure}
 
 \footnotetext{Některé zdroje \cite{j2YgJeTq3IrWJRcd} uvádějí verzi pouze jako 2 bajtovou a následující 2 bajty jako \uv{neznámé}. Vzhledem k tomu, že v jiných hlavičkách je verze v některých případech 4 bajtová a v některých 2 bajtová a že na testovacích zařízeních byly tyto dva bajty vždy nulové, domnívám se, že je pravděpodobnější, že verze je zde 4 bajtová.}
@@ -302,9 +296,6 @@ Kompletní VMK klíč chráněný záložním heslem je zobrazen na obrázku \re
 \begin{figure}[h]
 		\centering
 		\captionsetup{width=0.65\linewidth}
-		\caption{VMK chráněný záložním heslem}
-		\label{fig:vmk-bpwprotected}
-
 \begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
 00000000 $\textcolor{blue}{c1 56 2e 01 d6 4e 27 45}$  $\textcolor{blue}{8a bf 7a 9f 29 e0 b5 21}$  |.V...N'E..z.)..!|
 00000010 40 c5 cd 54 a0 bb d4 01  00 00 $\textcolor{red}{00 08}$ ac 00 00 00  |@..T............|
@@ -334,6 +325,8 @@ VMK
 		Nonce counter:	6
 		Key:	 $\textcolor{orange}{91 a0 ad e9 0c 08 ... 1d 1e 36 46 40 6b e7}$
 \end{lstlisting}
+		\caption{VMK chráněný záložním heslem}
+		\label{fig:vmk-bpwprotected}
 \end{figure}
 
 
