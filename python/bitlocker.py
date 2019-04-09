@@ -121,13 +121,14 @@ class UnecryptedKey():
         self.raw_data = raw_data
 
         self.size = utils.le_decode_uint32(self.raw_data[0:4])
+        self.encryption = utils.le_decode_uint16(self.raw_data[8:12])
         self.key = self.raw_data[12:]
 
     def __str__(self):
-        encryption = constants.ENCRYPTION_METHODS[utils.le_decode_uint8(self.raw_data[8:10])]
+        encryption_str = constants.ENCRYPTION_METHODS[self.encryption]
 
         s = "\033[1mUnecrypted key\033[0m\n"
-        s += "\tEncryption method:\t%s\n" % encryption
+        s += "\tEncryption method:\t%s\n" % encryption_str
         s += "\tKey:\t %s\n" % utils.bytes_as_hex(self.key)
 
         return s

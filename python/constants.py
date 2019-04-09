@@ -20,7 +20,8 @@ FVE_METADATA_BLOCK_OFFSET_LEN = 8
 FVE_METADATA_HEADER_LEN = 48
 
 
-ENCRYPTION_METHODS = {0x8000: "AES-CBC 128-bit encryption with Elephant Diffuser",
+ENCRYPTION_METHODS = {0x2003: "AES-CCM 128-bit encryption",
+                      0x8000: "AES-CBC 128-bit encryption with Elephant Diffuser",
                       0x8001: "AES-CBC 256-bit encryption with Elephant Diffuser",
                       0x8002: "AES-CBC 128-bit encryption",
                       0x8003: "AES-CBC 256-bit encryption",
