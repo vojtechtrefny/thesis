@@ -17,9 +17,36 @@ text
 
 \n{2}{Diskový formát}
 
-\todo{TODO: jak lépe říct on-disk format}
+Pro samotnou práci s BitLocker zařízením v linuxovém prostředí je nejdůležitější formát, tedy způsob, jakým jsou na disku uložena data. Protože je pomocí BitLockeru možné vytvořit šifrovaný flash disk, který lze použít na jiném počítači pouze za znalosti hesla pro jeho odemčení, je zřejmé, že někde na samotném disku jsou uložena všechna potřebná metadata pro jeho odemčení v (alespoň částečně) otevřené podobě.
 
-\n{3}{Hlavička}
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+		\begin{bytefield}[bitwidth=1.7em]{24}
+		  \bithead{1}{16} &
+		  \bithead{3}{68760} &
+		  \bithead{2}{128} &
+		  \bithead{3}{21440} &
+		  \bithead{2}{128} &
+		  \bithead{3}{22632} &
+		  \bithead{2}{128} &
+		  \bithead{3}{91568}\\
+		  \bitbox{1}{Hl.} &
+		  \bitbox{3}{Data} &
+		  \bitbox{2}{FVE 1} &
+		  \bitbox{3}{Data} &
+		  \bitbox{2}{FVE 2} &
+		  \bitbox{3}{Data} &
+		  \bitbox{2}{FVE 3} &
+		  \bitbox{3}{Data} & \\
+		\end{bytefield}
+		\caption{Zjednodušená struktura BitLocker zařízení}
+		\label{fig:bitlocker-device}
+\end{figure}
+
+Na obrázku \ref{fig:bitlocker-device} je nastíněna zjednodušená struktura uložení dat a metadat na zařízení šifrovaném pomocí BitLockeru. Na začátku zařízení se nachází 8 KiB velká hlavička (podrobněji popsána v části \ref{sec:header}) obsahující základní data pro jeho identikaci a mezi zašifrovanými daty jsou uloženy tři kopie dalších metadat, každá o velikosti 64 KiB (podrobněji popsány v části \ref{sec:fve-metadata}). Čísla nad jednotlivými \uv{částmi} odpovídají jejich velikosti v sektorech pro testovací zařízení o velikosti 100 MiB, které bylo vytvořeno ve Windows 10.
+
+\n{3}{Hlavička}\label{sec:header}
 
 Stejně jako u většiny diskových formátů, je i u BitLockeru na začátku disku takzvaná hlavička, která obsahuje základní informace o použitém formátu a jeho vlastnostech a také k jeho rychlé identifikaci. BitLocker hlavička zabírá celkem 512 bajtů a je u ní patrná inspirace u souborového systému NTFS. V tabulce \ref{tab:bitlocker-header} jsou zobrazeny jednotlivé (známé\footnote{Struktura formátu BitLocker není společností Microsoft nikde veřejně zcela kompletně zdokumentována, význam jednotlivých položek tedy nemusí být vždy přesně znám.}) položky hlavičky BitLockeru a pro srovnání také stejné položky v hlavičce souborového systému NTFS.
 
@@ -107,7 +134,7 @@ Pro další práci s BitLockerem není většina položek hlavičky zajímavá. 
 Umístění všech výše zmíněných \uv{důležitých} částí BitLocker hlavičky je zobrazeno na obrázku \ref{fig:bitlocker-header}.
 
 
-\n{3}{FVE metadata}
+\n{3}{FVE metadata}\label{sec:fve-metadata}
 
 Samotná výše popsaná hlavička formátu BitLocker neobsahuje o samotném BitLockeru téměř žádné informace. Slouží především pro rychlou identifikaci zařízení jako zařízení šifrovaného pomocí technologie BitLocker. Všechny informace potřebné pro práci s tímto zařízením, tedy především způsob uložení dat, jejich umístění, způsob jakým jsou šifrovány a hlavně klíč pro jejich (de)šifrování je uložený na třech různých místech\footnote{Na offsetech přibližně ve 33 \%, 44 \% a 55 \% u testovaných BitLocker zařízeních.} definovaných v hlavičce. Jedná se o tři identické kopie\footnote{Tři kopie jsou zvoleny pravděpodobně jako záloha pro případ náhodného poškození metadat. Vzhledem k tomu, že bez kompletní nepoškozené kopie těchto metadat není možné data na zařízení dešifrovat, je vícenásobná záloha na místě.} takzvaných \emph{FVE metadat}.
 
