@@ -229,7 +229,7 @@ U jednoduchého zařízení --- v našem případě USB flash disku --- se bude 
 
 \n{2}{Klíče}\label{sec:keys}
 
-Pravděpodobně nejdůležitější součástí BitLocker hlavičky jsou šifrovací klíče. Ve FVE hlavičce nalezneme celkem dva typy klíčů --- Full Volume Encryption Key, neboli FVEK, a Volume Master Key, neboli VMK\footnote{Původní varianta BitLockeru má ještě jeden klíč --- TWEAK, ten je podrobnějí popsán v části .}\todo{TODO: link na část o odlišnotech ve starších verzích}. Uloženy jsou v metadatových záznamech odpovídajících typů a to samozřejmě nikoli v otevřené podobě, ale zašifrované.
+Pravděpodobně nejdůležitější součástí BitLocker hlavičky jsou šifrovací klíče. Ve FVE hlavičce nalezneme celkem dva typy klíčů --- Full Volume Encryption Key, neboli FVEK, a Volume Master Key, neboli VMK\footnote{Původní varianta BitLockeru má ještě jeden klíč --- TWEAK, ten je podrobnějí popsán v části \ref{sec:old-versions}.}. Uloženy jsou v metadatových záznamech odpovídajících typů a to samozřejmě nikoli v otevřené podobě, ale zašifrované.
 
 \n{3}{Full Volume Encryption Key}
 
@@ -425,7 +425,31 @@ Dešifrovaný první sektor je vidět na obrázku \ref{fig:ntfs-header}. Jde zde
 
 U zbývajících dat pak dešifrování probíhá stejně --- po 512 B sektorech s inicializačním vektorem nastaveným na číslo sektoru odpovídající jejich umístění na šifrovaném zařízení. Jedinou výjimkou jsou oblasti BitLocker metadata, která jsou nahrazena nulami, jak bylo popsáno v části \ref{sec:data-map}.
 
-\n{2}{Odlišnosti ve starších verzích}
+\n{2}{Odlišnosti ve starších verzích}\label{sec:old-versions}
+
+Výše popsaná struktura diskového formátu BitLocker, způsob uložení klíčů a rozložení dat na šifrovaném a dešifrovaném zařízení, odpovídají aktuální nejnovější verzi BitLockeru dostupné ve Windows 7 a novějších. Původní verze dostupná ve Windows Vista se v některých drobnostech mírně liší. Tato práce se primárně zaobírá nejnovější verzí, protože je v současné době jedinou podporovanou (oficiální podpora Windows Vista byla ukončena 11. dubna 2017\cite{hfTs55csrXKY7b4F}). Podpora pro starší verze však může být také v některých případech vyžadovaná, a proto si ve stručnosti představíme nejvýznamnější odlišnosti mezi těmito verzemi.
+
+Nejvýraznější změnou je nejspíše změna algoritmu použitého pro šifrování data z AES-CBC na AES-XTS (rozdíl mezi těmito algoritmy a pravděpodobný důvod pro změnu je popsán v části \ref{sec:algorithms}), ale menší změny se týkají i samotných metadat a hlavičky.
+
+\n{3}{Hlavička}
+
+Samotná BitLocker hlavička se změnila jen minimálně. Zajímavé je, že starší verze obsahuje \uv{odkaz} pouze na první kopii FVE metadat a to přesto, že i tato verze obsahuje tři kopie. Offsety ostatních kopií je tak třeba vyčíst ze samotných metadat. Díky tomu se všechna metadata specifická pro BitLocker \uv{vešla} do nevyužitých oblastí v NTFS hlavičce (od které je BitLocker hlavička odvozen, viz \ref{sec:header}) a nezasahují tak do boot kódu. Na druhou stranu v případě poškození první kopie FVE metadat bude složitější najít na disku další dvě \uv{záložní} kopie.
+
+\n{3}{FVE metadata}
+
+FVE metadata se u starší verze liší pouze v drobných detailech. Výhodou FVE metadat je, že jsou verzovaná a lze tak snadno rozpoznat, u jakou variantu BitLockeru se jedná. Starší varianta má verzi 1, novější varianta má verzi 2. Důležité hodnoty (signatura, velikost, umístěné offsetů všech tří kopií FVE metadat) jsou v obou verzích stejné.
+
+\n{3}{Klíče}
+
+Struktura klíčů VMK a FVEK se u starší verze BitLockeru nijak neliší. Jediný rozdíl představuje \uv{nový} klíč TWEAK, který se používá pro šifrování inicializačního vektoru. TWEAK klíč je uložen, podobně jako FVEK, zašifrovaný pomocí VMK ve FVE metadatech jako speciální záznam (viz \ref{sec:fve-metadata-entry}).
+
+\n{3}{Šifrovaná data}
+
+Asi největší odlišnost u starších verzí je ve způsobu uložení šifrovaných dat a to především v umístění NTFS hlavičky otevřeného zařízení. Zatímco u novější verze BitLockeru je tato hlavička zašifrovaná a uložená na speciálním místě zapsaném ve FVE metadatech (způsob umístění šifrované NTFS hlavičky je popsán v části \ref{sec:data-map}), v původní variantě BitLockeru je NTFS hlavička uložena nezašifrovaná a to přímo na svém \uv{původním} místě na začátku disku. Vzhledem k malé odlišnosti původní hlavičky BitLockeru a hlavičky NTFS stačí při dešifrování nahradit určité části BitLocker hlavičky a výsledkem je validní NTFS hlavička pro dešifrované zařízení. 
+
+Nahradit je třeba signaturu --- místo původního \texttt{-FVE-FS-} dosadíme \texttt{NTFS} (standardní signatura souborového systému NTFS) a offset první kopie FVE metadat --- ten nahradí adresa prvního clusteru MFT, která je uložen ve FVE metadatech.
+
+Poslední rozdíl v šifrovaných datech spočívá v inicializačním vektoru použitém pro jejich (de)šifrování. Stejně jako u novější verze BitLockeru se zde použije číslo sektoru, ale nikoli \uv{prosté}, ale zašifrované pomocí TWEAK klíče.
 
 \n{1}{Existující řešení pro práci s BitLockerem v Linuxu}
 
