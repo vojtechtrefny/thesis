@@ -453,7 +453,47 @@ Poslední rozdíl v šifrovaných datech spočívá v inicializačním vektoru p
 
 \n{1}{Existující řešení pro práci s BitLockerem v Linuxu}
 
+Pro Linux již v současné době existují nástroje, které umí s BitLockerem více či méně pracovat. Podle aktivity vývoje a pokrytí funkcionality BitLockeru jsou nejvýznamnější dva projekty --- knihovna libbde\cite{Metz2018} a nástroj Dislocker
+
 \n{2}{libbde}
+
+Knihovna libbde vytvořená Joachimem Metzem představuje asi nejlepší software pro práci s BitLockerem v linuxových systémech a nejen tam, protože podporuje i systémy Microsoft Windows a MacOS X\cite{Metz2016}. Kromě knihovny jsou součástí projektu i nástroje pro koncové uživatele \texttt{bdemount} a \texttt{bdeinfo}. Ukázka výstupu nástroje \texttt{bdeinfo}, který slouží primárně pro analýzu existujících zařízení, je vidět na obrázku \ref{fig:libbde-bdeinfo}. Užitečná může být také dostupnost rozhraní pro jazyk Python (samotná knihovna je implementována v jazyce C).
+
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+\begin{lstlisting}[frame=none, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
+BitLocker Drive Encryption information:
+	Encryption method		: AES-XTS 128-bit
+	Volume identifier		: 1f8bf933-8323-4c97-8a89-a67625ac8f40
+	Creation time			: Feb 03, 2019 09:10:22.265405900 UTC
+	Description			: DESKTOP-NPM7RCA G: 2/3/2019
+	Number of key protectors	: 2
+
+Key protector 0:
+	Identifier			: f0f61678-fb6f-4ab1-934a-7094f5b68a85
+	Type				: Password
+
+Key protector 1:
+	Identifier			: 012e56c1-4ed6-4527-8abf-7a9f29e0b521
+	Type				: Recovery password
+\end{lstlisting}
+		\caption{Ukázka výstupu nástroje \texttt{bdeinfo}}
+		\label{fig:libbde-bdeinfo}
+\end{figure}
+
+Podpora BitLockeru, kterou libbde poskytuje, je velice rozsáhlá a dokáže pracovat se všemi existujícími formáty a verzemi. Dokumentace pro tuto knihovnu také obsahuje obsáhlý popis BitLockeru, formátu hlaviček a metadat\cite{Metz2011}, který byl neocenitelný při přípravě této diplomové práce.
+
+Bohužel i přes tyto dobré zprávy má knihovna libbde několik vlastností, které z ní dělají nevhodného kandidáta na nástroj pro každodenní použití. Předně je zde problém s neexistující podporou pro zápis --- otevřené zařízení je připojitelné pouze pro čtení a ačkoli je podpora pro zápis plánována již od roku 2014\footnote{https://github.com/libyal/libbde/issues/1}\todo{TODO: citaci nebo stačí takhle?}, stále není k dispozici. Kvůli tomu se může jednat o nástroj vhodný pro forenzní analýzu nebo záchranu dat, ale například pro vytvoření šifrovaného flash disku, který bude sloužit ke sdílení dat mezi Windows a Linuxem, je toto řešení nepoužitelné.
+
+Z hlediska případného dalšího vývoje nebo použití v jiných projektech, je také minimálně diskutabilní použití některých technologií. Knihovna libbde je součástí většího projektu \emph{libyal}\footnote{https://github.com/libyal/libyal/wiki/Overview}, který obsahuje několik desítek různých knihoven. Jednou z nich je i knihovna \emph{libaes}\footnote{https://github.com/libyal/libcaes/wiki}, která poskytuje multiplatformní implementaci AES a kterou libbde používá pro dešifrování dat. Používání \uv{vlastních} implementací šifrování je obecně nedoporučováno a preferuje se použití standardních knihoven jako například \emph{libopenssl} nebo \emph{libgcrypt}, které mají teoreticky zaručit \uv{správnost} implementace kryptografických algoritmů. Použitá knihovna libaes například při dešifrování klíčů kvůli špatné implementaci AES-CCM vůbec nekontroluje přiložený MAC tag\footnote{https://github.com/libyal/libcaes/issues/2}.
+
+Pro potenciální uživatele může být problematická také implementace v \emph{user space} pomocí FUSE\footnote{FUSE je interface pro práci se souborovými systémy v user space, bez potřeby programovat přímo v kernel space, a je tedy \uv{dostupný} i pro neprivilegované uživatele\cite{Singh2014}.}, které sice výrazně zjednodušuje vývoj, ale může mít velmi výrazný vliv na výkon --- zpomalení oproti implementaci v kernelu může nastat až o 83 \% a zatížení CPU může narůst až o 31 \%\cite{Vangoor2017}.
+
+Pro případnou integraci do existujících nástrojů pro práci s úložnými zařízeními, může být teoreticky problém také licence --- libbde je dostupná pod licencí GNU LGPL verze 3, která je zpětně nekompatibilní s verzí 2 a použití takové knihovny by (i u nástrojů a knihoven a dostupných pod licencí GNU LGPL verze 2 a novější) automaticky změnilo licenci výsledného programu na GNU LGPL verze pouze 3\cite{GNU2019}.
+
+Obecně lze říci, že knihovna libbde a s ní dostupné uživatelské nástroje jsou velmi užitečné pro případnou \uv{záchranu} dat ze zařízení zašifrovaného pomocí BitLockeru, při nemožnosti použít Windows, případně pro různou analýzu dat, ale bohužel nevhodné pro každodenní použití. Volba použitých technologií (FUSE, vlastní implementace kryptografických funkcí) z libbde také dělá nevhodného kandidáta na další rozšíření a případné začlenění do existujících aplikací a nástrojů.
 
 \n{2}{Dislocker}
 
