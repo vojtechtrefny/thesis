@@ -50,7 +50,7 @@ Na obrázku \ref{fig:bitlocker-device} je nastíněna zjednodušená struktura u
 
 Stejně jako u většiny diskových formátů, je i u BitLockeru na začátku disku takzvaná hlavička, která obsahuje základní informace o použitém formátu a jeho vlastnostech a také k jeho rychlé identifikaci. BitLocker hlavička zabírá celkem 512 bajtů a je u ní patrná inspirace u souborového systému NTFS. V tabulce \ref{tab:bitlocker-header} jsou zobrazeny jednotlivé (známé\footnote{Struktura formátu BitLocker není společností Microsoft nikde veřejně zcela kompletně zdokumentována, význam jednotlivých položek tedy nemusí být vždy přesně znám.}) položky hlavičky BitLockeru a pro srovnání také stejné položky v hlavičce souborového systému NTFS.
 
-Struktura NTFS hlavičky je převzata z \cite{Carrier2005}, struktura BitLocker hlavičky je pak částečně převzata z \cite{j2YgJeTq3IrWJRcd}, částečně z \cite{Ferguson2006} a částečně výsledkem vlastního zkoumání.
+Struktura NTFS hlavičky je převzata z \cite{Carrier2005}, struktura BitLocker hlavičky je pak částečně převzata z \cite{Metz2011}, částečně z \cite{Ferguson2006} a částečně výsledkem vlastního zkoumání.
 
 \begin{table}[h]
 \catcode`\-=12
@@ -138,7 +138,7 @@ Umístění všech výše zmíněných \uv{důležitých} částí BitLocker hla
 
 Samotná výše popsaná hlavička formátu BitLocker neobsahuje o samotném BitLockeru téměř žádné informace. Slouží především pro rychlou identifikaci zařízení jako zařízení šifrovaného pomocí technologie BitLocker. Všechny informace potřebné pro práci s tímto zařízením, tedy především způsob uložení dat, jejich umístění, způsob jakým jsou šifrovány a hlavně klíč pro jejich (de)šifrování je uložený na třech různých místech\footnote{Na offsetech přibližně ve 33 \%, 44 \% a 55 \% u testovaných BitLocker zařízeních.} definovaných v hlavičce. Jedná se o tři identické kopie\footnote{Tři kopie jsou zvoleny pravděpodobně jako záloha pro případ náhodného poškození metadat. Vzhledem k tomu, že bez kompletní nepoškozené kopie těchto metadat není možné data na zařízení dešifrovat, je vícenásobná záloha na místě.} takzvaných \emph{FVE metadat}.
 
-FVE metadata se skládají z celkem tří částí -- hlavičky FVE bloku (\emph{FVE metadata block header}), samotné FVE hlavičky (\emph{FVE metadata header}) a různého množství FVE záznamů (\emph{FVE metadata entry}, které obsahují samotné klíče a další důležité informace\cite{j2YgJeTq3IrWJRcd}\footnote{Toto dělení zavádí Joachim Metz v \cite{j2YgJeTq3IrWJRcd}. Teoreticky by se daly dvě první části metadat spojit, protože na disku se nachází vždy hned za sebou, ale rozdělení dává smysl, protože první část se týká popisu samotných metadat (signatura, verze, umístění všech tří bloků), zatímco druhá část už obsahuje samotná metadata (GUID, čas vytvoření, použitý šifrovací algoritmus).}.
+FVE metadata se skládají z celkem tří částí -- hlavičky FVE bloku (\emph{FVE metadata block header}), samotné FVE hlavičky (\emph{FVE metadata header}) a různého množství FVE záznamů (\emph{FVE metadata entry}, které obsahují samotné klíče a další důležité informace\cite{Metz2011}\footnote{Toto dělení zavádí Joachim Metz v \cite{Metz2011}. Teoreticky by se daly dvě první části metadat spojit, protože na disku se nachází vždy hned za sebou, ale rozdělení dává smysl, protože první část se týká popisu samotných metadat (signatura, verze, umístění všech tří bloků), zatímco druhá část už obsahuje samotná metadata (GUID, čas vytvoření, použitý šifrovací algoritmus).}.
 
 Důležité položky v obou hlavičkách, jejich velikosti a offsety (vztažené vůči začátku dané hlavičky) jsou uvedeny v tabulce \ref{tab:fve-header}. Kompletní struktura obou hlaviček je součástí přílohy \todo{TODO: odkaz na přílohu}.
 
@@ -274,7 +274,7 @@ Na obrázku \ref{fig:fvek-decrypted} je pak vidět příklad dešifrovaného FVE
 		\label{fig:fvek-decrypted}
 \end{figure}
 
-\footnotetext{Některé zdroje \cite{j2YgJeTq3IrWJRcd} uvádějí verzi pouze jako 2 bajtovou a následující 2 bajty jako \uv{neznámé}. Vzhledem k tomu, že v jiných hlavičkách je verze v některých případech 4 bajtová a v některých 2 bajtová a že na testovacích zařízeních byly tyto dva bajty vždy nulové, domnívám se, že je pravděpodobnější, že verze je zde 4 bajtová.}
+\footnotetext{Některé zdroje \cite{Metz2011} uvádějí verzi pouze jako 2 bajtovou a následující 2 bajty jako \uv{neznámé}. Vzhledem k tomu, že v jiných hlavičkách je verze v některých případech 4 bajtová a v některých 2 bajtová a že na testovacích zařízeních byly tyto dva bajty vždy nulové, domnívám se, že je pravděpodobnější, že verze je zde 4 bajtová.}
 
 \n{3}{Volume Master Key}
 
