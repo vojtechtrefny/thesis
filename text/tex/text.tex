@@ -455,12 +455,11 @@ Poslední rozdíl v šifrovaných datech spočívá v inicializačním vektoru p
 
 \n{1}{Existující řešení pro práci s BitLockerem v Linuxu}
 
-Pro Linux již v současné době existují nástroje, které umí s BitLockerem více či méně pracovat. Podle aktivity vývoje a pokrytí funkcionality BitLockeru jsou nejvýznamnější dva projekty --- knihovna libbde\cite{Metz2018} a nástroj Dislocker
+Pro Linux již v současné době existují nástroje, které umí s BitLockerem více či méně pracovat. Podle aktivity vývoje a pokrytí funkcionality BitLockeru jsou nejvýznamnější dva projekty --- knihovna libbde\cite{Metz2018} a nástroj Dislocker\cite{Coltel2017}.
 
 \n{2}{libbde}
 
 Knihovna libbde vytvořená Joachimem Metzem představuje asi nejlepší software pro práci s BitLockerem v linuxových systémech a nejen tam, protože podporuje i systémy Microsoft Windows a MacOS X\cite{Metz2016}. Kromě knihovny jsou součástí projektu i nástroje pro koncové uživatele \texttt{bdemount} a \texttt{bdeinfo}. Ukázka výstupu nástroje \texttt{bdeinfo}, který slouží primárně pro analýzu existujících zařízení, je vidět na obrázku \ref{fig:libbde-bdeinfo}. Užitečná může být také dostupnost rozhraní pro jazyk Python (samotná knihovna je implementována v jazyce C).
-
 
 \begin{figure}[h]
 		\centering
@@ -493,11 +492,52 @@ Z hlediska případného dalšího vývoje nebo použití v jiných projektech, 
 
 Pro potenciální uživatele může být problematická také implementace v \emph{user space} pomocí FUSE\footnote{FUSE je interface pro práci se souborovými systémy v user space, bez potřeby programovat přímo v kernel space, a je tedy \uv{dostupný} i pro neprivilegované uživatele\cite{Singh2014}.}, které sice výrazně zjednodušuje vývoj, ale může mít velmi výrazný vliv na výkon --- zpomalení oproti implementaci v kernelu může nastat až o 83 \% a zatížení CPU může narůst až o 31 \%\cite{Vangoor2017}.
 
+Nevýhodou FUSE je také, že vytvořené otevřené \uv{zařízení} ve skutečnosti není systémový nástroji rozpoznané jako blokové zařízení a to právě proto, že bylo vytvořeno v user space. Takto vytvořené zařízení sice lze připojit pomocí příkazu \texttt{mount}, kdy je na něm úspěšně rozpoznám souborový systém NTFS a jako takový je úspěšně připojen, ale protože jej systém nerozpozná jako nově přidané zařízení, není možné jej detekovat a připojit automaticky.
+
 Pro případnou integraci do existujících nástrojů pro práci s úložnými zařízeními, může být teoreticky problém také licence --- libbde je dostupná pod licencí GNU LGPL verze 3, která je zpětně nekompatibilní s verzí 2 a použití takové knihovny by (i u nástrojů a knihoven a dostupných pod licencí GNU LGPL verze 2 a novější) automaticky změnilo licenci výsledného programu na GNU LGPL verze pouze 3\cite{GNU2019}.
 
 Obecně lze říci, že knihovna libbde a s ní dostupné uživatelské nástroje jsou velmi užitečné pro případnou \uv{záchranu} dat ze zařízení zašifrovaného pomocí BitLockeru, při nemožnosti použít Windows, případně pro různou analýzu dat, ale bohužel nevhodné pro každodenní použití. Volba použitých technologií (FUSE, vlastní implementace kryptografických funkcí) z libbde také dělá nevhodného kandidáta na další rozšíření a případné začlenění do existujících aplikací a nástrojů.
 
 \n{2}{Dislocker}
+
+Druhým projektem, který se zabývá podporou BitLockeru v linuxových systémech, je nástroj Dislocker. Velkou výhodou tohoto nástroje je, že (na rozdíl od knihovny libbde) podporuje i zápis na otevřené BitLocker zařízení. Kromě Linuxu podporuje také MacOS X a BSD systémy. Součástí Dislockeru jsou kromě samotného nástroje \texttt{dislocker} i nástroj pro analýzu metadat \texttt{dislocker-metadata} (ukázka z jeho výstupu je na obrázku \ref{fig:dislocker-metadata}, nástroj \texttt{dislocker-file} sloužící pro dešifrování celého zařízení a uložení dat do souboru a také nástroj \texttt{dislocker-find} pro nalezení blokových zařízení s BitLocker formátem.
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+\begin{lstlisting}[frame=none, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
+ =====================[ BitLocker information structure ]=====================
+   Signature: '-FVE-FS-'
+   Total Size: 0x0370 (880) bytes (including signature and data)
+   Version: 2
+   Current state: ENCRYPTED (4)
+   Next state: ENCRYPTED (4)
+   Encrypted volume size: 104857600 bytes (0x6400000), ~100 MB
+   Size of convertion region: 0 (0)
+   Number of boot sectors backuped: 16 sectors (0x10)
+   First metadata header offset:  0x2195000
+   Second metadata header offset: 0x2c1d000
+   Third metadata header offset:  0x373a000
+   Boot sectors backup address:   0x21a5000
+   ----------------------------{ Dataset header }----------------------------
+     Dataset size: 0x00000324 (804) bytes (including data)
+     Unknown data: 0x00000001 (always 0x00000001)
+     Dataset header size: 0x00000030 (always 0x00000030)
+     Dataset copy size: 0x00000324 (804) bytes
+     Dataset GUID: '1F8BF933-8323-4C97-8A89-A67625AC8F40'
+     Next counter: 10
+     Encryption Type: AES-XTS-128 (0x8004)
+     Epoch Timestamp: 1549185022 sec, that to say Sun Feb  3 09:10:22 2019
+   --------------------------------------------------------------------------
+
+\end{lstlisting}
+		\caption{Ukázka výstupu nástroje \texttt{dislocker-metadata}}
+		\label{fig:dislocker-metadata}
+\end{figure}
+
+Nevýhody Dislockeru jsou pak podobné jako u výše zmíněné knihovny libbde --- implementace využívá FUSE a součástí nástroje je také vlastní implementace AES (ale zde, zdá se, bez chyb). Jedná se také pouze o nástroj pro koncové uživatele, nikoli o knihovnu a případná integrace se systémovými nástroji by tak byla složitější. Hlavní nevýhodou je však (pravděpodobně) ukončený vývoj tohoto nástroje --- poslední commit v Git repozitáři je z roku 2017.
+
+Obecně je nástroj Dislocker pro koncové uživatele vhodnější, než knihovna libbde a s ní spojené nástroje a to především proto, že umožňuje na BitLocker zařízení také zapisovat. Sdílí ovšem stejné problémy, které z něj nedělají ideální řešení pro další použití či případné rozšíření nebo začlenění do existujících aplikací a nástrojů.
 
 
 % ============================================================================ %
