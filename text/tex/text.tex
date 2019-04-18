@@ -253,7 +253,7 @@ Pravděpodobně nejdůležitější součástí BitLocker hlavičky jsou šifrov
 
 Full Volume Encryption Key (dále jen \uv{FVEK}) je nejdůležitějším klíčem pro celý BitLocker. Pomocí tohoto klíče jsou totiž zašifrovaná data uložená na disku. FVEK samotný nejde změnit bez kompletního přešifrování všech dat a v případě jeho poškození nebo náhodného smazání, není možné uložená data nijak dešifrovat.
 
-FVEK je v metadatech uložen v záznamu typu \emph{FVEK} s hodnotou \emph{AES-CCM šifrovaný klíč} a je, jak hodnota naznačuje, zašifrován pomocí šifry AES-CCM (o této šifře a módu více v části \ref{sec:algorithms}), kdy je jako klíč použit VMK a jako inicializační vektor 0 (o použitých inicializačních vektorech v BitLockeru více v části \ref{sec:iv}).
+FVEK je v metadatech uložen v záznamu typu \emph{FVEK} s hodnotou \emph{AES-CCM šifrovaný klíč} a je, jak hodnota naznačuje, zašifrován pomocí šifry AES-CCM (o této šifře a módu více v části \ref{sec:algorithms}), kdy je jako klíč použit VMK.
 
 \tab{Způsob uložení FVEK v metadatech}{tab:fvek-data}{0.65}{|l|l|l|}{
   \hline
@@ -265,7 +265,7 @@ FVEK je v metadatech uložen v záznamu typu \emph{FVEK} s hodnotou \emph{AES-CC
 }
 \footnotetext{Velikost šifrovaného klíče záleží na použité šifře --- 12 bajtů vždy připadne na informace o klíči a 32 bajtů v tomto případě připadá na samotný klíč, jelikož je použit 128bit AES.}
 
-Struktura dat pro FVEK v metadatovém záznamu je popsána v tabulce \ref{tab:fvek-data}. Kromě samotného klíče obsahují datum a čas jeho vytvoření a nonce\todo{TODO: najít definici a citaci}.
+Struktura dat pro FVEK v metadatovém záznamu je popsána v tabulce \ref{tab:fvek-data}. Kromě samotného klíče obsahují datum a čas jeho vytvoření a nonce. Nonce (z anglického \uv{\emph{n}umber used \emph{once}}) je unikátní číslo (v tomto případě prostá posloupnost začínající od nuly a zvyšující se s každým klíčem) sloužící společně s datem a časem vytvoření jako inicializační vektor pro dešifrování\cite{Kohnoc2010}.
 
 Samotná zašifrovaná část klíče obsahuje kromě samotného klíče také další data o klíči samotném --- velikost, verze a šifrovací metoda použitá pro data zašifrovaná pomocí FVEK. Jejich struktura je popsána v tabulce \ref{tab:fvek-data-decrypted}.
 
