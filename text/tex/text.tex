@@ -561,6 +561,159 @@ Obecně je nástroj Dislocker pro koncové uživatele vhodnější, než knihovn
 
 \n{2}{Podnadpis}
 
+\n{1}{Integrace se systémovými nástroji}
+
+Samotný nástroj pro práci s BitLockerem, vytvořený v rámci této práce, není dostatečným řešením pro kompletní podporu BitLocker zařízení v Linuxu. Cílem je, aby uživatel nepoznal, že nepracuje s nativním zařízením --- tedy, aby po připojení přenosného disku zašifrovaného pomocí technologie BitLocker, byl tento automaticky rozpoznán a uživateli bylo v grafickém rozhraní nabídnuto jeho odemčení, bez nutnosti další interakce ze strany uživatele. Tímto se zabývá druhá polovina praktické části této práce, kdy bude vytvořený nástroj integrován do existujících nástrojů a knihoven pro práci s úložnými zařízeními.
+
+\n{2}{UDisks}\label{sec:udisks}
+
+I když je často kritizována roztříštěnost linuxových systémů, která se projevuje také velkým množstvím různých grafických pracovních prostředí, pro práci s úložnými nástroji toto naštěstí neplatí a nejoblíbenější pracovní prostředí jako GNOME, KDE a Xfce používají jednotné API poskytované nástrojem UDisks, byť obvykle nepřímo, jako například v případě prostředí GNOME, které nad UDisks používá ještě další vrstvu v podobě nástroje GVfs\cite{GVfs2019}.
+
+Díky výše popsanému stačí, aby UDisks správně označil vybrané BitLocker zařízení jako šifrované a umožnil jeho odemčení, a bez dalších úprav pak nástroje, které UDisks používají, nabídnou uživateli jeho odemčení.
+
+UDisks není jediným nástrojem, ale spíše projektem, který poskytuje hned několik různých možností pro práci s úložnými zařízeními --- démona \emph{udisksd}, knihovnu \emph{libudisks} a konzolový nástroj \emph{udisksctl}\cite{UDisks2018}. Pro uživatele API, které UDisks nabízí, je nejdůležitější, že poskytuje DBus API\footnote{DBus je softwarová sběrnice, která umožňuje komunikaci mezi jednotlivými aplikacemi a démony (IPC) a také spouštění funkcí z API, které poskytují systémový démoni (RPC). V grafických prostředích jako GNOME a KDE se používají právě pro komunikaci se systémovými démony jako je UDisks a další.\cite{Palmieri2005}}, kdy na interface \emph{org.freedesktop.UDisks2} vystavuje všechna existující bloková zařízení a umožňuje snadný přístup k jejich vlastnostem a přes nabízené funkce také jejich úpravy a správu.
+
+\n{3}{Identifikace BitLockeru}\label{sec:bitlocker-identification}
+
+První věcí, kterou je v případě implementace podpory BitLockeru v UDisks, vyřešit, je schopnost identifikace BitLocker zařízení. Jak již bylo řečeno, pro rychlou identifïkaci BitLocker zařízení slouží jeho hlavička a především signatura \texttt{-FVE-FS-} (o BitLocker hlavičce více v části \ref{sec:header}). UDisks ale sám jednotlivá zařízení neskenuje a jejich hlavičky a signatury nečte, na to používá existující systémovou databázi blokových zařízení vytvořenou démonem UDev.
+
+UDev slouží primárně pro zprostředkování událostí o přidání, odstranění a změnách blokových zařízení z kernelu do user space. Vytváří také speciální soubory a symbolické odkazy pro přímý přístup k blokovým zařízení v adresáři \texttt{/dev}. Důležitou součástí UDevu jsou pravidla, která určují, co má UDev s daným zařízením v jakém případě dělat --- umožňují například jejich inicializaci, nahrání potřebných ovladačů nebo prosté spuštění programů a démonů, které dané zařízení mají ovládat.\cite{Kenlon2018} Kromě toho také s využitím různých systémových nástrojů zjistí o nově připojeném zařízení všechny potřebné informace, tedy také přečte jeho signaturu z hlavičky. K tomu využívá nástroje \texttt{blkid} z projektu \texttt{util-linux}.
+
+Do knihovny libblkid (a tedy i do nástroje blkid) byla podpora pro detekci BitLocker signatury přidána ve verzi 2.33 vydané v listopadu 2018\cite{Zak2018}. Díky tomu UDev správně identifikuje BitLocker zařízení a v jeho databázi jsou tato zařízení vedena jako \emph{crypto} zařízení typu \emph{BitLocker}, jak je vidět na obrázku \ref{fig:udev-bitlocker}.
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+\begin{center}
+\centering
+\begin{lstlisting}[frame=none, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true, xleftmargin=.35\textwidth, xrightmargin=.35\textwidth]
+E: DEVNAME=/dev/sda2
+E: DEVTYPE=partition
+E: SUBSYSTEM=block
+E: ID_BUS=usb
+E: ID_FS_TYPE=BitLocker
+E: ID_FS_USAGE=crypto
+\end{lstlisting}
+\end{center}
+		\caption{Vybrané informace z UDev databáze o připojeném BitLocker zařízení}
+		\label{fig:udev-bitlocker}
+\end{figure}
+
+Udev (a díky němu i UDisks) tak má vše potřebné pro identifikaci nově připojeného zařízení jako BitLocker zařízení. Ačkoli UDisks tuto identifikaci z UDevu převezme a správně nastaví hodnoty property \texttt{IdType} a \texttt{IdUsage} jak je vidět na obrázku \ref{fig:udisks-bitlocker-without-support}.
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+\begin{center}
+\centering
+\begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true, xleftmargin=.2\textwidth, xrightmargin=.2\textwidth]
+/org/freedesktop/UDisks2/block_devices/sda2:
+  org.freedesktop.UDisks2.Block:
+    Configuration:              []
+    CryptoBackingDevice:        '/'
+    Device:                     /dev/sda2
+    DeviceNumber:               2050
+    HintAuto:                   true
+    HintIconName:
+    HintIgnore:                 false
+    HintName:
+    HintPartitionable:          true
+    HintSymbolicIconName:
+    HintSystem:                 false
+    Id:
+    IdLabel:
+    $\textcolor{blue}{IdType:}$                     $\textcolor{blue}{BitLocker}$
+    IdUUID:
+    $\textcolor{blue}{IdUsage:}$                    $\textcolor{blue}{crypto}$
+\end{lstlisting}
+\end{center}
+		\caption{Informace o BitLocker zařízení z pohledu UDisks}
+		\label{fig:udisks-bitlocker-without-support}
+\end{figure}
+
+V UDisks však stále chybí některé informace o BitLocker zařízení jako například UUID, které UDev nezná, protože jeho získání z BitLocker hlavičky knihovna libblkid nepodporuje.
+
+UDisks také pro toto zařízení nevytvoří interface \emph{org.freedesktop.UDisks2.Encrypted}, které normálně poskytuje další funkce pro práci se šifrovanými zařízeními. To je logické, protože i když je zařízení identifikováno jako šifrované, UDisks s ním neumí nijak pracovat. O přidání této funkcionality a zmíněného interface pro BitLocker zařízení pojednává část \ref{sec:udisks-implementation}.
+
+\n{3}{Knihovna libblockdev}
+
+UDisks nepracuje s blokovými zařízeními napřímo, ale využívá buď Udev databázi (pro zjištění informací o existujících zařízeních, viz část o identifikaci BitLocker zařízení \ref{sec:bitlocker-identification}), nebo knihovnu libblockdev (pro samotnou manipulaci se zařízeními)\cite{Podzimek2017}. Jakákoli nová vlastnost, která má být přidána do UDisks, musí být napřed přidána do libblockdev.
+
+Libblockdev je relativně jednoduchá knihovna napsaná v jazyce C, která poskytuje jednotné API pro různé technologie pro práci s úložnými zařízeními jako je LVM, Btrfs nebo LUKS. Je také modulární a poskytované funkce jsou rozděleny do pluginů, které je možné používat samostatně. Kromě jazyka C nabízí také rozhraní pro Python díky využití technologie GObject introspection.\cite{Podzimek2015}
+
+Pro implementace nových funkcí pro práci s BitLockerem byl zvolen \emph{crypto} plugin této knihovny, který již obsahuje funkce pro práci s šifrovacími technologiemi LUKS/dm-crypt a TrueCrypt/VeraCrypt. Součástí implementace jsou celkem čtyři nové funkce pro práci s BitLocker zařízeními. Jejich pojmenování a navrhované API vychází z obdobných funkcí pro technologii LUKS/dm-crypt. Deklarace nových funkcí jsou k dispozici na obrázku \ref{fig:libblockdev-bitlocker}.
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+\begin{lstlisting}[frame=none, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true, xleftmargin=.1\textwidth, xrightmargin=.1\textwidth]
+gboolean bd_crypto_bitlocker_open (const gchar *device,
+                                   const gchar *name,
+                                   const gchar *passphrase,
+                                   GError **error);
+gboolean bd_crypto_bitlocker_close (const gchar *bitlocker_device,
+                                    GError **error);
+gboolean bd_crypto_device_is_bitlocker (const gchar *device,
+                                        GError **error);
+gchar* bd_crypto_bitlocker_uuid (const gchar *device,
+                                 GError **error);
+
+\end{lstlisting}
+		\caption{Interface nově implemetovaných funkcí pro práci s BitLockerem v knihovně libblockdev}
+		\label{fig:libblockdev-bitlocker}
+\end{figure}
+
+Nově implementované funkce slouží k odemčení a opětovnému uzamčení (\texttt{open/close}) BitLocker zařízení, zjištění zda se skutečně jedná o BitLocker zařízení (\texttt{is$\_$bitlocker}) a zjištění UUID\footnote{V terminologii BitLockeru spíše GUID, ale zde se držíme linuxové terminologie, kde se tento univerzální identifikátor nazývá obvykle právě UUID.} BitLocker zařízení (\texttt{uuid}). API nových funkcí se drží standardu daném ostatními funkcemi v libblockdev, kdy funkce vrací boolean hodnotu určující, zda bylo její volání úspěšné, či nikoli (s výjimkou funkcí, které vrací nějakou konkrétní hodnotu, jako zde UUID, v takové případě vrací buď dané UUID jako textový řetězec, nebo \texttt{NULL} v případě neúspěchu) a v případě chyby nastavují chybu do uživatelem předané výstupní proměnné \texttt{error}.
+
+Díky tomu, že mnohé technologie pro práci s úložnými zařízeními neposkytují API v podobě knihoven, má libblockdev propracovaný systém pomocných funkcí pro volání konzolových nástrojů a samotná implementace s použitím vytvořeného nástroje pro práci s BitLockerem byla relativně jednoduchá.
+
+\n{3}{Implementace v UDisks}\label{sec:udisks-implementation}
+
+V samotném UDisks je nejprve třeba vyřešit identifikaci BitLocker zařízení jako podporovaného šifrovaného zařízení, jak je popsáno v části \ref{sec:bitlocker-identification}. K tomu slouží nově přidaná funkce \texttt{udisks$\_$linux$\_$block$\_$is$\_$bitlocker}, která využívá informace z UDev databáze pro identifikaci blokového zařízení jako BitLocker. S pomocí této funkce pak stačí UDisks již jen upravit tak, aby BitLocker zařízení přidal DBus interface \emph{org.freedesktop.org.UDisks2.Encrypted} a zpřístupnil tak obecné property a funkce pro šifrovaná zařízení. Které bude třeba následně upravit tak, aby správně podporovaly i BitLocker.
+
+Díky tomu, že UDisks podporuje kromě technologie LUKS/dm-crypt také zařízení šifrovaná pomocí TrueCrypt/VeraCrypt, je přidání další technologie relativně jednoduché --- kód je již připraven na podporu více různých technologií, kdy jsou k dispozici obecné implementace funkcí sloužící k obsluze API volání pro odemykání a uzamykání šifrovaných zařízení a pro přidání podpory pro nové technologie stačí vytvořit pomocné funkce s minimálními úpravami ve veřejných funkcích.
+
+Pro BitLocker takto byly vytvořeny pomocné funkce \texttt{bitlocker$\_$open$\_$job$\_$func} a \texttt{bitlocker$\_$close$\_$job$\_$func}, které jsou volány z obecných funkcí \texttt{handle$\_$unlock} a \texttt{handle$\_$lock}, které obsluhují API volání veřejných funkcí \emph{Unlock} a \emph{Lock}. Jejich API je definováno velmi obecně (povinným parametrem funkce \emph{Unlock} je pouze heslo, ostatní jsou předávány jako nepovinný seznam klíč-hodnota\cite{Storaged2019}), takže pro BitLocker není potřeba jej nijak měnit. Ostatní funkce veřejného API (\emph{ChangePassphrase} a \emph{Resize}), které nejsou pro BitLocker podporovány byly upraveny tak, aby při zavolání vracely chybovou hlášku informující o tom, že tato funkcionalita není pro BitLocker podporována, protože u existujícího DBus interface nelze funkce dynamicky odebírat.
+
+Díky tomu, že všechny součásti UDisks --- tedy DBus démon, knihovna i konzolový nástroj --- jsou generovány ze stejného kódu, není potřeba upravovat žádné další části kódu, kromě výše zmíněných, a podpora pro odemykání BitLocker zařízení bude automaticky propagována i do nástroje \texttt{udisksctl}.
+
+Na obrázku \ref{fig:udisks-bitlocker-with-support} je viditelné BitLocker zařízení z pohledu UDisks po aplikaci výše zmíněných změn. Nově je přidáno \emph{org.freedesktop.org.UDisks2.Encrypted} interface poskytující další informace o zařízení (funkce zde nejsou viditelné, jedná se pouze o informační výpis z nástroje \texttt{udisksctl}).
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+\begin{center}
+\centering
+\begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true, xleftmargin=.2\textwidth, xrightmargin=.2\textwidth]
+/org/freedesktop/UDisks2/block_devices/sda2:
+  org.freedesktop.UDisks2.Block:
+    Configuration:              []
+...
+    HintPartitionable:          true
+    HintSymbolicIconName:
+    HintSystem:                 false
+    Id:
+    IdLabel:
+    $\textcolor{blue}{IdType:}$                     $\textcolor{blue}{BitLocker}$
+    $\textcolor{blue}{IdUUID:}$                     $\textcolor{blue}{1f8bf933-8323-4c97-...}$
+    $\textcolor{blue}{IdUsage:}$                    $\textcolor{blue}{crypto}$
+  $\textcolor{red}{org.freedesktop.UDisks2.Encrypted:}$
+    ChildConfiguration:         []
+    CleartextDevice:            '/'
+    $\textcolor{red}{HintEncryptionType:}$          $\textcolor{red}{BitLocker}$
+    MetadataSize:               0
+
+\end{lstlisting}
+\end{center}
+		\caption{Informace o BitLocker zařízení z pohledu UDisks s přidanou podporou pro BitLocker}
+		\label{fig:udisks-bitlocker-with-support}
+\end{figure}
+
+\n{3}{Podpora v grafických prostředích}
+
+Jak již bylo zmíněno výše (\ref{sec:udisks}), jednotlivá grafická rozhraní spoléhají při identifikaci šifrovaných zařízení na UDisks --- pokud má dané zařízení typ \emph{crypto} a má k dispozici interface \emph{org.freedesktop.org.UDisks2.Encrypted}, označí jej jako šifrované a nabídnou jeho odemčení. Po instalaci UDisks s aplikovanými změnami zmíněnými výše jsou tak BitLocker zařízení viditelná v grafickém prostředí jako šifrovaná a při pokusu o jejich připojení bude uživatel dotázán na heslo. Na obrázku \ref{fig:bitlocker-xfce} je ukázka z prostředí Xfce.
+
+\obr{Připojení BitLocker zařízení v prostředí Xfce}{fig:bitlocker-xfce}{0.75}{img/bitlocker-xfce.png}
 
 % ============================================================================ %
 \nn{Závěr}
