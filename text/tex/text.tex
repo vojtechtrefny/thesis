@@ -561,6 +561,73 @@ Obecně je nástroj Dislocker pro koncové uživatele vhodnější, než knihovn
 
 \n{2}{Podnadpis}
 
+\n{1}{Device Mapper}
+
+Device Mapper je kernelový ovladač, který poskytuje rozhraní pro vytváření nových blokových zařízení pomocí jejich mapování na zařízení existující. Umožňuje tak například vytvořit z jednoho disku několik menších blokových zařízení, nebo naopak spojit více disků do jednoho zařízení.\cite{RedHat2019}
+
+Device mapper umožňuje vytváření různých zařízení s různými vlastnostmi, díky různým modulům, takzvaným \emph{targetům}. Ty poskytují jak funkcionalitu pro prosté mapování mezi dvěma či více zařízeními v podobě targetu \emph{dm-linear}, ale existují i složitější targety, které poskytují i další funkcionalitu nad rámec tohoto mapování, jako například target \emph{dm-raid}, který přidává logiku RAID zařízení.
+
+Z pohledu této práce jsou však důležité dva targety --- \emph{dm-zero} a především \emph{dm-crypt}.
+
+\n{2}{dm-zero}
+
+Dm-zero je velice jednoduchý target. V podstatě se jedná o blokové zařízení, které se chová jako \texttt{/dev/zero} --- při čtení vrací nuly a jakékoli zápisy prostě zahazuje bez chyb.\cite{KernelZero}
+
+\n{2}{dm-crypt}
+
+Pro tuto práci nejdůležitějším targetem je dm-crypt, který slouží pro tvorbu šifrovaných zařízení. Kromě samotného mapování mezi existujícím zařízením a zařízením nově vytvořeným, navíc všechny zápisy na mapované zařízení a čtení z něj (de)šifruje.\cite{Broz2018}
+
+Z pohledu nástrojů pracujících s mapovaným zařízením, se tak jedná o normální nešifrované zařízení --- při čtení bloku jej device mapper podle své tabulky napřed přečte ze zašifrovaného disku a dešifruje, takže uživatel dostane již otevřený text. V případě zápisu je pak situace opačná --- uživatel zapisuje otevřená data, která Device Mapper nejprve zašifruje a teprve poté skutečně zapíše na disk. Zjednodušené schéma fungování crypt targetu je na obrázku \ref{fig:dm-crypt}.
+
+\obr{Fungování dm-crypt targetu z pohledu user space a kernel space.\cite{Fruhwirth2005}}{fig:dm-crypt}{0.75}{img/dm-crypt.png}
+
+Crypt target se používá primárně pro šifrování disku v linuxových systémech společně s technologií LUKS. LUKS se stará o správu klíčů a definuje také diskový formát pro ukládání metadat. Podobně jako u BitLockeru je i u LUKSu klíč pro (de)šifrování dat uložen přímo na disku v metadatech chráněný heslem, případně dalšími způsoby. Crypt target má tedy v tomto případě na starosti ukládání dat a jejich dešifrování při čtení a šifrování při zápisu a LUKS slouží pro zjednodušení práce se šifrovaným zařízením, aby si uživatel nemusel pamatovat klíč a další informace nutné pro správné nastavení šifrování.\cite{Fruhwirth2005}
+
+Jak může vypadat Device Mapper tabulka jednoduchého šifrovaného zařízení vy\-tvo\-ře\-né\-ho pomocí technologie LUKS/dm-crypt je vidět v tabulce \ref{tab:dm-crypt-luks}.
+
+\tab{Mapa dm-crypt zařízení v Linuxu}{tab:dm-crypt-luks}{0.65}{|l|l|l|l|l|l|l|l|l|}{
+  \hline
+   jméno & start & velikost & target & šifra & klíč & IV offset & zařízení & offset  \\ \hline
+   luks & 0 & 172032 & crypt & aes-xts-plain64 & f5..d0 & 0 & 8:3 & 32768 \\ \hline
+}
+
+Zde se jedná o jednoduché šifrované zařízení, které zabírá celé zařízení zašifrované pomocí šifry AES-XTS, kdy inicializačním vektorem je číslo sektoru. Výsledné mapované zařízení je o 16 MiB, které zabírá LUKS hlavička, menší (to udává poslední položka \emph{offset} uváděná v sektorech).
+
+Crypto target podporuje všechny šifry, které jsou podporovány v linuxovém kernel crypto API\todo{Nekecám náhodou?} a širokou škálu definic inicializačního vektoru a teoreticky tak umožňuje podporovat různé technologie šifrování disku --- linuxová implementace technologie TrueCrypt/VeraCrypt je také postavena nad Device Mapperem a crypto targetem\cite{Broz2014}.
+
+\n{2}{Device Mapper a BitLocker}
+
+Z výše uvedeného popisu device mapperu, crypto targetu a stručného představení technologie LUKS, vyplývá, že BitLocker a LUKS/dm-crypt jsou velice podobné technologie. Obě mají na disku metadata v otevřené podobě, která obsahují zašifrovaný klíč použitý k šifrování dat uložených na disku. Ve výchozím nastavení dokonce BitLocker i LUKS/dm-crypt používají stejnou šifrovací funkci --- AES-XTS a stejný inicializační vektor --- číslo sektoru. Jsou zde rozdíly ve způsobu uložení dat a metadat na disku a práci s klíči, ale z pohledu Device Mapperu stačí znát (de)šifrovací klíč pro data a mapu šifrovaných dat na disku a může s BitLockerem pracovat stejně jako s jakýmikoli jinými šifrovanými daty.
+
+Způsob, jak jsou v BitLocker metadatech uloženy klíče je popsán v části \ref{sec:keys}. Pro použití s Device Mapperem tedy stačí pouze získat z FVE metadat FVEK a použít ho pro vytvoření dm-crypt zařízení.
+
+\obr{Schéma použitých DM targetů při odemykání BitLocker zařízení}{fig:bitlocker-dm-scheme}{0.75}{img/bitlocker-dm-schema.png}
+
+Jak bylo popsáno v části \ref{sec:data-map} a naznačeno na obrázku \ref{fig:bitlocker-decrypt}, struktura uložení dat na BitLocker zařízení je relativně složitá a dešifrované zařízení má některá data, jako například NTFS hlavičku, přesunutá na jiná místa. I toto lze pomocí Device Mapperu vyřešit jednoduše --- mapování různých sektorů původního (šifrovaného) zařízení na zařízení nové je jednou ze základních funkcí, kterou Device Mapper nabízí, a tato funkcionalita je dostupná pro všechny targety, tedy i pro crypto target.
+
+Stačí tedy vědět, které sektory šifrovaného zařízení je třeba namapovat na které sektory otevřeného zařízení. Metadatové části, které jsou v otevřeném zařízení v BitLockeru nahrazeny nulami, mohou být stejně snadno nahrazeny pomocí Device Mapper targetu zero, který je mimo jiné také ochrání proti náhodnému přepsání, protože zápisy na dm-zero zařízení jsou zahazovány\cite{KernelZero}.
+
+Příklad, jak může fungovat mapování mezi šifrovaným BitLocker zařízením a otevřeným zařízením v linuxovém prostředí, je vidět na obrázku \ref{fig:bitlocker-dm-scheme}.
+
+Kompletní Device Mapper tabulka pro testovací 100 MiB zařízení je uvedena v tabulce \ref{tab:bitlocker-dm-table}.
+
+\tab{DM tabulka odemčeného BitLocker zařízení v Linuxu}{tab:bitlocker-dm-table}{0.65}{|l|l|l|l|l|l|l|l|l|}{
+  \hline
+   \textbf{start} & \textbf{velikost} & \textbf{target} & \textbf{šifra} & \textbf{klíč} & \textbf{IV offset} & \textbf{zařízení} & \textbf{offset}  \\ \hline
+ 0 & 16 & crypt & aes-xts-plain64 & a4..52 & 68904 & 7:0 & 68904 \\ \hline
+ 16 & 68760 & crypt & aes-xts-plain64 & a4..52 & 16 & 7:0 & 16 \\ \hline
+ 68776 & 128 & zero & \multicolumn{5}{c|}{} \\ \hline
+ 68904 & 16 & zero & \multicolumn{5}{c|}{} \\ \hline
+ 68920 & 21424 & crypt & aes-xts-plain64 & a4..52 & 68920 & 7:0 & 68920 \\ \hline
+ 90344 & 128 & zero & \multicolumn{5}{c|}{} \\ \hline
+ 90472 & 22632 & crypt & aes-xts-plain64 & a4..52 & 90472 & 7:0 & 90472 \\ \hline
+ 113104 & 128 & zero & \multicolumn{5}{c|}{} \\ \hline
+ 113232 & 91568 & crypt & aes-xts-plain64 & a4..52 & 113232 & 7:0 & 113232 \\ \hline
+}
+
+Můžeme zde vidět strukturu otevřeného zařízení, kdy prvních 16 sektorů zabírá crypt target, který mapuje data původně uložená na offsetu 68904 sektorů --- to je NTFS hlavička, která je v původním BitLocker zařízení uložena za prvními metadaty --- tomu odpovídá i nastavení IV offsetu, protože inicializační vektor v BitLockeru je číslo sektoru, na kterém jsou data skutečně uložena, nikolo číslo sektoru, na kterém se data nachází na otevřeném zařízení. Následuje první část dat, opět mapovaná pomocí crypt targetu. Za ní jsou dvě dm-zero zařízení, která nahrazují první kopii FVE metadat a NTFS hlavičku, přesunutou na začátek zařízení. Zbývají již jen dvě kopie FVE metadat, opět nahrazené pomocí dm-zero, a tři datové oblasti mapované pomocí dm-crypt.
+
+
 \n{1}{Integrace se systémovými nástroji}
 
 Samotný nástroj pro práci s BitLockerem, vytvořený v rámci této práce, není dostatečným řešením pro kompletní podporu BitLocker zařízení v Linuxu. Cílem je, aby uživatel nepoznal, že nepracuje s nativním zařízením --- tedy, aby po připojení přenosného disku zašifrovaného pomocí technologie BitLocker, byl tento automaticky rozpoznán a uživateli bylo v grafickém rozhraní nabídnuto jeho odemčení, bez nutnosti další interakce ze strany uživatele. Tímto se zabývá druhá polovina praktické části této práce, kdy bude vytvořený nástroj integrován do existujících nástrojů a knihoven pro práci s úložnými zařízeními.
