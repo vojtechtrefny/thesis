@@ -19,9 +19,40 @@ text
 
 \n{2}{Použité kryptografické funkce}\label{sec:algorithms}
 
-\n{3}{AES-CBC}
+\n{3}{AES-CBC}\label{sec:aes-cbc}
 
 \n{3}{Elephant difuzér}
+
+Elephant difuzér je nový algoritmus navržený pro původní variantu BitLockeru rozšiřující AES-CBC, tak aby byly odstraněny potenciální bezpečnostní problémy AES-CBC při použití pro šifrování blokových zařízeních, popsané v \ref{sec:aes-cbc}\cite{Ferguson2006}.
+
+\obr{Schéma šifrování sektoru pomocí AES-CBS s Elephant difuzérem\cite{Ferguson2006}\cite{Kumar2008}}{fig:bitlocker-difuzer}{0.75}{img/bitlocker-difuzer.png}
+
+Zjednodušené schéma fungování šifrování pomocí AES-CBC s Elephant difuzérem je znázorněno na obrázku \ref{fig:bitlocker-difuzer}. Základem je použití dvou různých klíčů --- TWEAK klíče pro difuzér a FVEK pro samotné AES-CBC. Podle \cite{Ferguson2006} je tak zajištěno, že výsledek bude minimálně stejně bezpečný jako samotný AES-CBC a eliminuje se tak potenciální problém s použitím nové, nevyzkoušené šifry.
+
+První krome při použití difuzéru je odvození takzvaného sektorového klíče $K_s$. Ten se získá z čísla sektoru a TWEAK klíče ($K_{TWEAK}$) následujícím způsobem:
+
+$$
+K_s = E(K_{TWEAK}, e(s)) \parallel E(K_{TWEAK}, e'(s))
+$$
+
+kde $e(s)$ je číslo sektoru uložené jako 64bit little endian (s vynulovanými nepoužitými bity) a $e'(s)$ je stejné jako $e(s)$, kromě posledního bajtu, který je nastaven na 128 (0x80). Výsledný 128bit klíč je pak následně podle potřeby zřetězen, aby odpovídal délce šifrovaného sektoru.\cite{Ferguson2006}\cite{Kumar2008}\cite{Rosendorf2013}
+
+Otevřený text je pak následně XORován s takto získaným klíčem a dále zpracován pomocí dvojice difuzérů $A$ a $B$.
+
+Přesný popis obou difuzérů je k dispozici v \cite{Ferguson2006}, zde si pouze stručně naznačíme jejich funkčnost, jejíž cílem je rozprozstřít informaci po celé délce šifrovaného sektoru.
+
+Difuzéry $A$ (\ref{difuzer-a}) a $B$ (\ref{difuzer-b}) fungují při šifrování dat následovně:
+
+\begin{align}
+\mathbf{for}\ i &= n \cdot A_{cycles} - 1,  \dots 2, 1, 0 \nonumber \\
+	&d_i \leftarrow d_i - (d_{i-2} \oplus (d_{i-5} \lll R^{(a)}_{i \mod 4})) \label{difuzer-a} \\
+\mathbf{for}\ i &= n \cdot B_{cycles} - 1,  \dots 2, 1, 0 \nonumber \\
+	&d_i \leftarrow d_i - (d_{i+2} \oplus (d_{i+5} \lll R^{(b)}_{i \mod 4})) \label{difuzer-b} \\
+\nonumber
+\end{align}
+
+kde $n$ je počet slov v sektoru, $(d_0, d_1,\dots,d_{n-1}$) jsou slova daného sektoru, $i$ je řídící proměnná cyklu, $A_{cycles}$ a $B_{cycles}$ je počet opakování difuzérů $A$ a $B$ (u BitLockeru je $A_{cycles} := 5$ a $B_{cycles} := 3$) a $R^{(a)}$ a $R^{(b)}$ počet posunutí doleva ($\lll$) v jednotlivých krocích.\cite{Ferguson2006}
+
 
 \n{3}{AES-XTS}
 
