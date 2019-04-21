@@ -623,9 +623,23 @@ Obecně je nástroj Dislocker pro koncové uživatele vhodnější, než knihovn
 
 \n{1}{Nadpis}
 
-\n{2}{Podnadpis}
+Hlavním cílem této práce je navrhnout a naimplementovat řešení pro práci s BitLocker zařízeními v linuxovém prostředí, které bude jednoduché na použití pro běžné uživatele a které vyřeší problémy stávajících řešení, jako je používání nestandardních kryptografických knihoven nebo používání technologie FUSE, která má negativní dopad jak na výkon, tak na uživatelskou přívětivost.
 
-\n{1}{Device Mapper}
+Splnění výše uvedených požadavků lze rozdělit do tří částí:
+
+\begin{enumerate}
+	\item podpora pro práci pro přímou práci se šifrovanými daty, tedy jejich dešifrování při čtení a šifrování při zápisu,
+	\item podpora pro práci s metadaty BitLockeru, tedy identifikaci BitLocker zařízení a získání důležitých informací pro práci s BitLockerem, jako je použitý šifrovací algoritmus, způsob uložení dat na disku a především klíče pro (de)šifrování dat a
+	\item integrace s existujícími systémový nástroji a démony pro práci se storage tak, aby z pohledu uživatele fungovala práce s BitLocker zařízeními stejně, jako práce se zařízeními šifrovanými pomocí nativní technologie LUKS/dm-crypt.
+\end{enumerate}
+
+První část lze vyřešit pomocí existujícího kernelového ovladače Device Mapper. Přímá nízkoúrovňová práce s blokovými zařízeními tak vyřešena přímo v kernelu a pro (de)šifrování dat bude využito kryptografických funkcí z kernel crypto API. Pro podporu nejnovější verze BitLockeru s šifrováním AES-XTS dokonce není potřeba Device Mapper nijak upravovat. Podrobněji je toto řešení probráno v kapitole \ref{sec:device-mapper}.
+
+Pro druhou část byl v rámci této práce naimplementován nový nástroj, který z BitLocker hlavičky a FVE metadat zjistí strukturu daného zařízení a se znalostí hesla získá FVEK a připraví správnou konfiguraci pro Device Mapper pro vytvoření otevřeného zařízení. Tento nový nástroj je podrobněji popsán v části \ref{sec:implementace-nastroj}.
+
+Aby byla zajištěna podpora BitLockeru v grafických rozhraních, je třeba integrovat vytvořený nástroj do existujících nástrojů pro práci s úložnými zařízeními, především do démona UDisks, který zajistí, že BitLocker zařízení bude rozpoznáno jako podporované šifrované zařízení a uživateli nabídnuto jeho odemčení. Změny potřebné v těchto nástrojích jsou popsány v části \ref{sec:integrace}.
+
+\n{1}{Device Mapper}\label{sec:device-mapper}
 
 Device Mapper je kernelový ovladač, který poskytuje rozhraní pro vytváření nových blokových zařízení pomocí jejich mapování na zařízení existující. Umožňuje tak například vytvořit z jednoho disku několik menších blokových zařízení, nebo naopak spojit více disků do jednoho zařízení.\cite{RedHat2019}
 
@@ -691,8 +705,105 @@ Kompletní Device Mapper tabulka pro testovací 100 MiB zařízení je uvedena v
 
 Můžeme zde vidět strukturu otevřeného zařízení, kdy prvních 16 sektorů zabírá crypt target, který mapuje data původně uložená na offsetu 68904 sektorů --- to je NTFS hlavička, která je v původním BitLocker zařízení uložena za prvními metadaty --- tomu odpovídá i nastavení IV offsetu, protože inicializační vektor v BitLockeru je číslo sektoru, na kterém jsou data skutečně uložena, nikolo číslo sektoru, na kterém se data nachází na otevřeném zařízení. Následuje první část dat, opět mapovaná pomocí crypt targetu. Za ní jsou dvě dm-zero zařízení, která nahrazují první kopii FVE metadat a NTFS hlavičku, přesunutou na začátek zařízení. Zbývají již jen dvě kopie FVE metadat, opět nahrazené pomocí dm-zero, a tři datové oblasti mapované pomocí dm-crypt.
 
+\n{1}{Nadpis}\label{sec:implementace-nastroj}
 
-\n{1}{Integrace se systémovými nástroji}
+Z výše popsaného Device Mapper targetu dm-crypt a jeho možností vyplývá, že pro správnou podporu BitLockeru v linuxovém prostředí stačí dodat mu klíč, šifru a správné umístění šifrovaných dat a výsledkem bude blokové zařízení, které lze používat pro čtení i pro zápis stejně, jako jakékoli jiné nešifrované blokové zařízení.
+
+Protože žádné z existujících řešení neumožňuje tyto informace získat, bylo rozhodnotu vytvořit nový jednoduchý nástroj, který z BitLocker hlavičky a FVE metadat všechny potřebné informace získá a pomocí nástroje \texttt{dmsetup} vytvoří potřebné Device Mapper zařízení.
+
+\n{2}{Implementace}
+
+Jako programovací jazyk pro implementaci byl zvolen Python, který umožňuje rychlý vývoj a díky široké škále vestavěných i externích knihoven má dostatek funkcí pro práci s blokovými zařízení i šifrováním. Menší nevýhodou této volby je nemožnost použít výsledný kód jako knihovnu pro programy napsané v jazyce C (respektive v jiném jazyce než Python), ale jako vhodné API v tomto případě může posloužit i volání externí utility, pokud má k dispozici vhodné módy a přepínače, které umožní přijímat heslo poslané na standardní vstup a omezí interakci s uživatelem. Systémové nástroje, které budeme dále používat, navíc s takovým použitím konzolových nástrojů používají a knihovna libblockdev (viz \ref{sec:libblockdev}) umí s takovými nástroji bez problémů pracovat.
+
+Vzhledem k tomu, že celá práce s metadaty je uceleným ohraničeným krokem, kdy po nastavení Device Mapperu již není potřeba další interakce s blokovým zařízením (jelikož se o vše stará kernel), dává částečně smysl celou tuto záležitost pojmount jako samostatný proces, který z disku načte potřebné informace, vytvoří Device Mapper zařízení a ukončí se.
+
+Součástí nástroje jsou následné moduly, které lze využívat i samostatně, případně z jiných Python projektů:
+
+\begin{itemize}
+	\item \textbf{constants} obsahující různé konstanty vztahující se k BitLocker metadatům (velikosti hlaviček, offsety...),
+	\item \textbf{dm} obsahující pomocné funkce pro práci s Device Mapper zařízeními,
+	\item \textbf{entry} obsahující třídu \texttt{MetadataEntry} a pokrývající funkcionalitu potřebnou pro práci s metadatovými FVE záznamy (\ref{sec:fve-metadata-entry}),
+	\item \textbf{fve} obsahující třídu \texttt{FVE}, která využívá ostatní zmíněné moduly pro kompletní parsování FVE metadat,
+	\item \textbf{header} obsahující třídu \texttt{BitLockerHeader} sloužící pro práci s BitLocker hlavičkou a extrakci potřebných dat z ní,
+	\item \textbf{keys} obsahující třídy \texttt{AESEncryptedKey}, \texttt{FVEK}, \texttt{UnencryptedKey}, \texttt{VMK} a sloužící pro práci s různými klíči nacházejícími se ve FVE metadatech včetně jejich dešifrování a
+	\item \textbf{utils} obsahující různé pomocné funkce a nástroje pro práci blokovými zařízeními a pro dekódování přečtených dat.
+\end{itemize}
+
+Rozčlenění do jednotlivých tříd s definovaným rozhraním umožňuje snadné budoucí rozšíření pro starší verze BitLocker metadat, které jsou často jen mírně odlišné (více informací o rozdílech ve starších verzích BitLockeru v části \ref{sec:old-versions}) a bude tedy možné při jejich implementaci znovu použít většinu kódu.
+
+Na obrázku \ref{fig:uml-classes} je k dispozici diagram tříd komponent implementovaného nástroje bitlockersetup. V přiložených zdrojových kódech je také k dispozici kompletní automaticky generovaná API dokumentace.
+
+\obr{Diagram tříd vytvořeného nástroje bitlockersetup}{fig:uml-classes}{0.75}{img/class-diagram.png}
+
+\n{2}{Uživatelské rozhraní}
+
+Implementovaný nástroj, pojmenovaný \texttt{bitlockersetup}, má několik podpříkazů, které umožňují volit mezi základními operacemi. Jsou to především:
+
+\begin{itemize}
+	\item \textbf{open} sloužící pro odemčení BitLocker zařízení,
+	\item \textbf{close} sloužící pro jeho opětovné uzamčení a tedy odstraněný vytvořeného Device Mapper zařízení,
+	\item \textbf{dump} který vypíše veškeré informace o vybraném zařízení a
+	\item \textbf{uuid} který vypíše UUID vybraného BitLocker zařízení.
+\end{itemize}
+
+Kompletní manuálová stránka pro bitlockersetup je dostupná v příloze \todo{TODO: link na přílohu}. Ukázka odemčení BitLocker zařízení pomocí bitlockersetup je na obrázku \ref{fig:bitlockersetup-open}.
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+\begin{lstlisting}[frame=none, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
+$ sudo bitlockersetup open /dev/sdb2 bitlocker
+Password for '/dev/sdb2': 
+Created device mapper device '/dev/mapper/bitlocker'.
+
+\end{lstlisting}
+		\caption{Ukázka použití nástroje \texttt{bitlockersetup} pro odemčení BitLocker zařízení}
+		\label{fig:bitlockersetup-open}
+\end{figure}
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+\begin{lstlisting}[frame=none, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
+$ sudo bitlockersetup dump /dev/sdb2
+Encryption method:	AES-XTS 128-bit encryption
+Volume identifier:	1f8bf933-8323-4c97-8a89-a67625ac8f40
+Creation time:		2019-02-03 09:10:22.265406
+Description:		DESKTOP-NPM7RCA G: 2/3/2019
+VMK
+	Identifier:	f0f61678-fb6f-4ab1-934a-7094f5b68a85
+	Type:		VMK protected with password
+	Salt:		03 d1 b4 23 6b f4 5b df e4 bd dd f4 83 ec 47 ee
+	AES-CCM encrypted key
+		Nonce data:	2019-02-03 09:10:36.052000
+		Nonce counter:	3
+		Key:	 0d a8 61 01 72 46 9b 7b 34 40 0c ... 1d 21 0a b7 b8 c4
+VMK
+	Identifier:	012e56c1-4ed6-4527-8abf-7a9f29e0b521
+	Type:		VMK protected with recovery password
+	Salt:		46 ee b7 10 0e 43 4d d4 a5 ab eb c6 21 f4 f1 84
+	AES-CCM encrypted key
+		Nonce data:	2019-02-03 09:10:36.052000
+		Nonce counter:	6
+		Key:	 91 a0 ad e9 0c 08 e8 1e 3d 2f 7d 3b ... 36 46 40 6b e7
+FVEK
+	AES-CCM encrypted key
+		Nonce data:	2019-02-03 09:10:36.052000
+		Nonce counter:	8
+		Key:	 13 08 8b fd e9 12 5a a6 7d 7b 53 73 ... 94 df c8 49 66
+
+\end{lstlisting}
+		\caption{Ukázka použití nástroje \texttt{bitlockersetup} pro zobrazení informací o BitLocker zařízení}
+		\label{fig:bitlockersetup-dump}
+\end{figure}
+
+\n{2}{Instalace}
+
+Pro snadnou instalaci nástroje bitlockersetup je k dispozici standardní \texttt{Makefile} skript, instalaci lze tedy provést ze složky \texttt{bitlockersetup} pomocí příkazu \texttt{make install}. K dispozici je také SPEC soubor pro tvorbu RPM balíčků pro distribuci Fedora, balíčky pro Fedoru 30 jsou součástí přiložených zdrojových kódů.
+
+Podporována je také instalace pomocí standardních metod pro Python balíčky pomocí skriptu \texttt{setup.py}, případně pomocí nástroje \texttt{pip}.
+
+\n{1}{Integrace se systémovými nástroji}\label{sec:integrace}
 
 Samotný nástroj pro práci s BitLockerem, vytvořený v rámci této práce, není dostatečným řešením pro kompletní podporu BitLocker zařízení v Linuxu. Cílem je, aby uživatel nepoznal, že nepracuje s nativním zařízením --- tedy, aby po připojení přenosného disku zašifrovaného pomocí technologie BitLocker, byl tento automaticky rozpoznán a uživateli bylo v grafickém rozhraní nabídnuto jeho odemčení, bez nutnosti další interakce ze strany uživatele. Tímto se zabývá druhá polovina praktické části této práce, kdy bude vytvořený nástroj integrován do existujících nástrojů a knihoven pro práci s úložnými zařízeními.
 
@@ -766,7 +877,7 @@ V UDisks však stále chybí některé informace o BitLocker zařízení jako na
 
 UDisks také pro toto zařízení nevytvoří interface \emph{org.freedesktop.UDisks2.Encrypted}, které normálně poskytuje další funkce pro práci se šifrovanými zařízeními. To je logické, protože i když je zařízení identifikováno jako šifrované, UDisks s ním neumí nijak pracovat. O přidání této funkcionality a zmíněného interface pro BitLocker zařízení pojednává část \ref{sec:udisks-implementation}.
 
-\n{3}{Knihovna libblockdev}
+\n{3}{Knihovna libblockdev}\label{sec:libblockdev}
 
 UDisks nepracuje s blokovými zařízeními napřímo, ale využívá buď Udev databázi (pro zjištění informací o existujících zařízeních, viz část o identifikaci BitLocker zařízení \ref{sec:bitlocker-identification}), nebo knihovnu libblockdev (pro samotnou manipulaci se zařízeními)\cite{Podzimek2017}. Jakákoli nová vlastnost, která má být přidána do UDisks, musí být napřed přidána do libblockdev.
 
