@@ -60,6 +60,29 @@ kde $n$ je počet slov v sektoru, $(d_0, d_1,\dots,d_{n-1}$) jsou slova daného 
 
 \n{3}{Odvození klíče z hesla}\label{sec:kdf}
 
+Jedním z problémů, které je třeba řešit v případech, kdy je v kryptografii použito heslo zadávané uživatelem, je převedení tohoto hesla na klíč použitelný pro vybranou šifrovací funkci, v našem případě AES-CCM, která v BitLockeru slouží k ochraně na disku uložených klíčů. Obecně se v těchto případech používají speciální derivační funkce (KDF, Key Derivation Function), které z hesla odvodí klíč o požadované délce. Obvyklým postupem je zkombinování hesla s unikátní solí za použití hashovací funkce, kdy přidání soli ztěžuje možnost vytvoření předpočítaných tabulek hesel. Dalším používaným stupněm ochrany je pak přidání určitého počtu iterací, které je třeba pro odvození klíče provést. Tím se celý výpočet zpomaluje a teoreticky se tak zvyšuje odolnost proti útokům hrubou silou.\cite{Kaliski2000}
+
+Ačkoli existují standardizované funkce pro odvození klíče z hesla, jako například PBKDF2 definovaná v \cite{Kaliski2000}, Microsoft pro BitLocker zavedl vlastní funkci postavenou nad hashovací funkcí SHA256 s pevným počtem iterací.
+
+Prvním krokem pro odvození klíče je zkonstruování struktury uvedené na obrázku \ref{fig:bitlocker-kdf}.
+
+\begin{figure}[h]
+		\centering
+		\captionsetup{width=0.65\linewidth}
+\begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
+uint8_t last_sha256[32];
+uint8_t initial_sha256[32];
+uint8_t salt[8];
+uint64_t count;
+\end{lstlisting}
+		\caption{Struktura pro odvození hesla z klíče podle \cite{Metz2011}}
+		\label{fig:bitlocker-kdf}
+\end{figure}
+
+Následně se počet iterací (\texttt{count}) a poslední spočtená hodnota hashe celé struktury \texttt{last$\_$sha256} nastaví na nuly. Z uživatelem zadaného hesla se spočte SHA256 a z tohoto výsledku se spočte ještě jednou SHA256 a nastaví se jako výchozí hodnota hashe (\texttt{initial$\_$sha256}). Potřebná sůl je uložena v metadatových záznamech u VMK, který je chráněn daným heslem (viz \ref{sec:vmk}).
+
+Dalším krokem je již samotná iterace, kdy se spočte SHA256 hash celé struktury a výsledek se uloží do proměnné \texttt{last$\_$sha256}. Zároveň se zvýší čítač iterací o jedna a vše se opakuje celkem 1048576 (0x100000) krát. Poslední hodnota uložená v \texttt{last$\_$sha256} po provedení všech iterací, je pak hledaný odvozený klíč.\cite{Metz2011}\cite{Agostini2019}
+
 \n{3}{Inicializační vektory}\label{sec:iv}
 
 \n{2}{Diskový formát}
@@ -325,7 +348,7 @@ Na obrázku \ref{fig:fvek-decrypted} je pak vidět příklad dešifrovaného FVE
 
 \footnotetext{Některé zdroje \cite{Metz2011} uvádějí verzi pouze jako 2 bajtovou a následující 2 bajty jako \uv{neznámé}. Vzhledem k tomu, že v jiných hlavičkách je verze v některých případech 4 bajtová a v některých 2 bajtová a že na testovacích zařízeních byly tyto dva bajty vždy nulové, domnívám se, že je pravděpodobnější, že verze je zde 4 bajtová.}
 
-\n{3}{Volume Master Key}
+\n{3}{Volume Master Key}\label{sec:vmk}
 
 Jak již bylo řečeno výše, FVEK je na disku uložen zašifrován pomocí Volume Master Key (dále jen \uv{VMK}). Ten je uložen také v metadatových záznamech ve FVE metadatech a je také zašifrován. Na rozdíl od FVEK, který je vždy uložen v pouze v jediné kopii, VMK může být ve FVE metadatech uložen vícekrát, pokaždé chráněný jiným způsobem, tedy pokaždé jinak zašifrovaný.
 
