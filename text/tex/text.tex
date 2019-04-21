@@ -19,6 +19,8 @@ text
 
 \n{2}{Použité kryptografické funkce}\label{sec:algorithms}
 
+BitLocker používá několik různých kryptografických funkcí a to jak pro šifrování samotných na disku uložených dat, tak pro ochranu klíčů pro jejich (de)šifrování, které jsou uloženy v metadatech. V této kapitole si představíme trojici algoritmů používaných v různých verzích BitLockeru pro šifrování dat na disku: AES-CBC a jeho rozšíření Elephant difuzér a AES-XTS a také algoritmus AES-CCM, kterými jsou zašifrovány BitLockereme používané a klíče a stručně si také představíme pro BitLocker specifickou funkci pro odvození klíče z uživatelem zadávaného hesla.
+
 \n{3}{AES-CBC}\label{sec:aes-cbc}
 
 \n{3}{Elephant difuzér}
@@ -57,6 +59,14 @@ kde $n$ je počet slov v sektoru, $(d_0, d_1,\dots,d_{n-1}$) jsou slova daného 
 \n{3}{AES-XTS}
 
 \n{3}{AES-CCM}
+
+Poslední z šifrovacích funkcí použitých v BitLockeru, je AES s CCM módem, která je použita pouze v rámci metadat na ochranu uložených klíčů.
+
+CCM mód představuje kombinaci dvou existujících technologií --- CTR módu, který zajišťuje samotné šifrování a CBC-MAC, který zajišťuje autentizaci, přičemž pro obě části šifry se používá stejný klíč.
+
+Postup při dešifrování a verifikace, který nás při práci s BitLocker zařízeními zajímá nejvíce, je následující: Na vstupu funkce jsou zašifrovaná data, řetězec pro verifikaci (MAC tag) a nonce použité při generování šifrovaných dat. Šifrovaný text je dešifrován v CTR módu, jehož výsledkem jsou otevřená data a MAC. Následně se pomocí CBC-MAC ověří dešifrovaný MAC a pokud je verifikace úspěšná, vrátí CCM funkce dešifrovaná data.\cite{Dworkin2004}
+
+Ačkoli je CCM mód obvykle používán pro zajištění, že s šifrovanými daty nebylo nijak manipulováno (jako například v IPsec\cite{Housley2005}), v BitLockeru lze verifikační krok využít také k rychlému zjištění, zda bylo uživatelem zadáno správné heslo, protože v případě použití nesprávného hesla MAC autentizace také selže a není tak třeba složitě zjišťovat, zda dešifrovaný heslem chráněný klíč je ve skutečnosti správný či nikoli.
 
 \n{3}{Odvození klíče z hesla}\label{sec:kdf}
 
