@@ -23,6 +23,24 @@ BitLocker používá několik různých kryptografických funkcí a to jak pro �
 
 \n{3}{AES-CBC}\label{sec:aes-cbc}
 
+AES-CBC je standardní široce používaná bloková šifra, která je ve starších verzích BitLockeru používaná pro šifrování dat uložených na šifrovaném zařízení.
+
+Původní návrh CBC módu byl patentován v roce 1978\cite{Ehrsam1978} a řešil problém staršího ECB módu, při jehož použití vzniká zašifrováním dvou stejných bloků otevřeného textu stejný šifrovaný text. Tento problém CBC řeší tak, že každý blok otevřeného textu je napřed XORován s předchozím šifrovaným blokem. Standardně tedy šifrování v CBC módu probíhá následovně
+
+$$
+C_i = E(K, P_i \oplus C_{i-1}) \quad \text{pro}\ i = 1, \dots, k
+$$
+
+kde $C_i$ je výsledný šifrovaný blok, $K$ klíč, $P_i$ blok otevřeného textu a $C_{i-1}$ předchozí šifrovaný blok. Protože pro první blok textu neexistuje žádný předchozí, se kterým by mohl být XORován, zavádí se nová hodnota, takzvaný \emph{inicializační vektor}, který se použije pro první blok místo předchozího šifrovaného bloku.\cite{Kohnoc2010}
+
+\obr{Schéma šifrování pomocí blokové šifry v CBC módu\cite{WikimediaCBC}}{fig:cbc-mode}{0.85}{img/cbc.png}
+
+Inicializační vektor je možné definovat různými způsoby, jako je například fixní IV (v tom případě ale dojde ke stejnému problému jako u ECB --- dva stejně začínající sektory vytvoří stejný šifrovaný text), náhodný IV nebo posloupnost čísel.\cite{Kohnoc2010} Poslední zmiňovaný způsob je použitý i u BitLockeru, kde je v případě AES-CBC použito jako inicializační vektor číslo sektoru, navíc ještě zašifrované stejným klíčem, který je využit i pro šifrování textu.
+
+XORování s předchozím blokem zavádí to AES-CBC potenciální slabinu, kdy při znalosti umístění bloku otevřeného textu lze pozměnit předchozí blok tak, aby v následujícím bloku došlo k přehození hodnoty určeného bitu. Tím se sice znehodnotí informace uložené ve změněném bloku (který bude dešifrován na náhodná data), ale můžeme tak změnit důležitou informaci obsaženou v bloku následujícím podle potřeba útočníka.\cite{Regalado2013}
+
+U BitLockeru může tento útok představovat problém, pokud útočník zná přesné rozložení dat na disku, což je možné obzvlášť u počítačů instalovaných z předpřipravených obrazů, pokud k nim má útočník přístup. Útočník pak může změnit některé důležité části systému, například spouštěné binární soubory.\cite{Ferguson2006}\cite{Rosendorf2013}
+
 \n{3}{Elephant difuzér}
 
 Elephant difuzér je nový algoritmus navržený pro původní variantu BitLockeru rozšiřující AES-CBC, tak aby byly odstraněny potenciální bezpečnostní problémy AES-CBC při použití pro šifrování blokových zařízeních, popsané v \ref{sec:aes-cbc}\cite{Ferguson2006}.
