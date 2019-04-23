@@ -31,15 +31,15 @@ Původní návrh CBC módu byl patentován v~roce 1978\cite{Ehrsam1978} a řeši
 C_i = E(K, P_i \oplus C_{i-1}) \quad \text{pro}\ i = 1, \dots, k~\\
 \end{align*}
 
-kde $C_i$ je výsledný šifrovaný blok, $K$ klíč, $P_i$ blok otevřeného textu a $C_{i-1}$ předchozí šifrovaný blok. Protože pro první blok textu neexistuje žádný předchozí, se kterým by mohl být XORován, zavádí se nová hodnota, takzvaný \emph{inicializační vektor}, který se použije pro první blok místo předchozího šifrovaného bloku.\cite{Kohnoc2010}
+kde $C_i$ je výsledný šifrovaný blok, $K$ klíč, $P_i$ blok otevřeného textu a $C_{i-1}$ předchozí šifrovaný blok. Protože pro první blok textu neexistuje žádný předchozí blok $C_0$, se kterým by mohl být XORován, zavádí se nová hodnota, takzvaný \emph{inicializační vektor}, který se použije pro první blok místo předchozího šifrovaného bloku.\cite{Kohnoc2010}
 
 \obr{Schéma šifrování pomocí blokové šifry v~CBC módu\cite{WikimediaCBC}}{fig:cbc-mode}{0.85}{img/cbc.png}
 
-Inicializační vektor je možné definovat různými způsoby jako je například fixní IV (v~tom případě ale dojde ke stejnému problému jako u~ECB --- dva stejně začínající sektory vytvoří stejný šifrovaný text), náhodný IV nebo posloupnost čísel.\cite{Kohnoc2010} Poslední zmiňovaný způsob je použitý i u~BitLockeru, kde je v~případě AES-CBC použito jako inicializační vektor číslo sektoru, navíc ještě zašifrované stejným klíčem, který je využit i pro šifrování textu.
+Pro BitLocker je v~případě AES-CBC použito jako inicializační vektor číslo sektoru, navíc ještě zašifrované stejným klíčem, který je využit i pro šifrování textu.
 
 XORování s~předchozím blokem zavádí to AES-CBC potenciální slabinu, kdy při znalosti umístění bloku otevřeného textu lze pozměnit předchozí blok tak, aby v~následujícím bloku došlo k~přehození hodnoty určeného bitu. Tím se sice znehodnotí informace uložené ve změněném bloku (který bude dešifrován na náhodná data), ale můžeme tak změnit důležitou informaci obsaženou v~bloku následujícím podle potřeba útočníka.\cite{Regalado2013}
 
-U~BitLockeru může tento útok představovat problém, pokud útočník zná přesné rozložení dat na disku, což je možné obzvlášť u~počítačů instalovaných z~předpřipravených obrazů, pokud k~nim má útočník přístup. Útočník pak může změnit některé důležité části systému, například spouštěné binární soubory.\cite{Ferguson2006}\cite{Rosendorf2013}
+U~BitLockeru může tento útok představovat problém, pokud útočník zná přesné rozložení dat na disku, což je možné obzvlášť u~počítačů instalovaných z~předpřipravených obrazů, pokud k~nim má útočník přístup. Útočník pak může změnit některé důležité části systému, například spouštěné binární soubory.\cite{Ferguson2006}\cite{Rosendorf2013} AES-CBC neobsahuje žádnou autentizační část a nechrání tedy před podobným (ale ani náhodnými, například v~případě poškození disku) změnami šifrovaných dat tak, jako jiné šifry, jako například AES-CCM.
 
 \n{3}{Elephant difuzér}
 
@@ -74,17 +74,36 @@ Difuzéry $A$ (\ref{difuzer-a}) a $B$ (\ref{difuzer-b}) fungují při šifrován
 kde $n$ je počet slov v~sektoru, $(d_0, d_1,\dots,d_{n-1}$) jsou slova daného sektoru, $i$ je řídící proměnná cyklu, $A_{cycles}$ a $B_{cycles}$ je počet opakování difuzérů $A$ a $B$ (u~BitLockeru je $A_{cycles} := 5$ a $B_{cycles} := 3$) a $R^{(a)}$ a $R^{(b)}$ počet posunutí doleva ($\lll$) v~jednotlivých krocích.\cite{Ferguson2006}
 
 
-\n{3}{AES-XTS}
+\n{3}{AES-XTS}\label{sec:aes-xts}
+
+AES-XTS je speciálně navržená bloková šifra pro šifrování dat uložených na blokových zařízeních. Jedná se o~rozšíření původního XEX módu, jehož funkcionalita je naznačena na obrázku \ref{fig:xex-mode}, o~takzvaný \emph{ciphertext stealing}, který rozšiřuje XEX mód o~možnost šifrovat data i o~jiné délce, než jsou násobky 128bit.\cite{Dworkin2010} Vzhledem k~tomu, že u~blokových zařízení se standardně používá délka sektoru 512 nebo 4096 bajtů, jedná se v~tomto případě prakticky o~XEX mód.
+
+\obr{Schéma šifrování pomocí blokové šifry v~XEX módu\cite{WikimediaXEX}}{fig:xex-mode}{0.90}{img/xex.png}
+
+Šifrování jednoho bloku pomocí AES-XTS pak probíhá následujícím způsobem
+
+\begin{align*}
+T &= E (K_2 , i) \otimes \alpha^j \\
+C &= E (K_1 , P \oplus T) \oplus T \\
+\end{align*}
+
+kde $E$ je použitá šifrovací funkce (v~tomto případě AES), $C$ je výsledný šifrovaný blok, $P$ blok otevřeného textu, $K_1$ a $K_2$ jsou klíče, $i$ číslo sektoru, $\alpha^j$ prvek $GF(2^{128})$ odpovídající polynomiálnímu $x$ (například $10_2$), přičemž $GF$ je Galoisovo těleso.\cite{IEEE2008}
+
+Z~výše uvedeného vyplývá, že pro AES-XTS jsou použity dva různé klíče --- jeden pro šifrování čísla sektoru (inicializačního vektoru) a druhý pro šifrování samotného bloku otevřeného textu. Proto jsou klíče pro AES-XTS dvakrát větší, než kolik by vyžadovalo samotné AES, klíč pro 128bit AES-XTS tedy bude mít délku 256bit.
+
+Stejně jako AES-CBC zmíněný v~části \ref{sec:aes-cbc}, ani AES-XTS neobsahuje žádnou autentizaci a nechrání tedy před změnami šifrovaného textu.
 
 \n{3}{AES-CCM}
 
-Poslední z~šifrovacích funkcí použitých v~BitLockeru je AES s~CCM módem, která je použita pouze v~rámci metadat na ochranu uložených klíčů.
+Poslední z~šifrovacích funkcí použitých v~BitLockeru je AES s~CCM módem, která je použita pouze v~rámci metadat na ochranu uložených klíčů. AES-CCM představuje zástupce šifer používaných pro takzvané autentizované šifrování, které zajišťují jako integritu, tak důvěrnost dat. Toho je typicky docíleno spojením šifrování a MAC.\cite{ISO2009}
 
 CCM mód představuje kombinaci dvou existujících technologií --- CTR módu, který zajišťuje samotné šifrování a CBC-MAC, který zajišťuje autentizaci, přičemž pro obě části šifry se používá stejný klíč.
 
 Postup při dešifrování a verifikace, který nás při práci s~BitLocker zařízeními zajímá nejvíce, je následující: Na vstupu funkce jsou zašifrovaná data, řetězec pro verifikaci (MAC tag) a nonce použité při generování šifrovaných dat. Šifrovaný text je dešifrován v~CTR módu, jehož výsledkem jsou otevřená data a MAC. Následně se pomocí CBC-MAC ověří dešifrovaný MAC a pokud je verifikace úspěšná, vrátí CCM funkce dešifrovaná data.\cite{Dworkin2004}
 
 Ačkoli je CCM mód obvykle používán pro zajištění, že s~šifrovanými daty nebylo nijak manipulováno (jako například v~IPsec\cite{Housley2005}), v~BitLockeru lze verifikační krok využít také k~rychlému zjištění, zda bylo uživatelem zadáno správné heslo, protože v~případě použití nesprávného hesla MAC autentizace také selže a není tak třeba složitě zjišťovat, zda dešifrovaný heslem chráněný klíč je ve skutečnosti správný či nikoli.
+
+AES-CCM bylo kvůli zajištění autentizace také zvažováno pro šifrování samotných uložených dat. Problémem v~tomto případě ale je fakt, že šifrovaná dat nemohou být větší, než data otevřená --- potřebný MAC tag není možné uložit společně s~šifrovaným blokem a ukládání MAC tagu do jiného bloku společně s~MAC tagy pro další bloky porušuje atomicitu zápisu sektoru a v~případě poškození sektoru s~MAC tagy bude ztraceno více sektorů s~daty, která nelze při dešifrování ověřit.\cite{Ferguson2006}
 
 \n{3}{Odvození klíče z~hesla}\label{sec:kdf}
 
@@ -112,6 +131,17 @@ Následně se počet iterací (\texttt{count}) a poslední spočtená hodnota ha
 Dalším krokem je již samotná iterace, kdy se spočte SHA256 hash celé struktury a výsledek se uloží do proměnné \texttt{last$\_$sha256}. Zároveň se zvýší čítač iterací o~jedna a vše se opakuje celkem 1048576 (0x100000) krát. Poslední hodnota uložená v~\texttt{last$\_$sha256} po provedení všech iterací, je pak hledaný odvozený klíč.\cite{Metz2011}\cite{Agostini2019}
 
 \n{3}{Inicializační vektory}\label{sec:iv}
+
+Ve výše uvedených popisech šifrovacích funkcí je několikrát zmíněn inicializační vektor. Ten se používá u~blokových šifer, které pro zvýšení bezpečnosti před šifrováním XORují otevřený text s~předchozím šifrovaným blokem. Inicializační vektor v~tomto případě nahrazuje nultý šifrovaný blok pro první blok otevřeného textu.
+
+Inicializační vektor je možné definovat různými způsoby jako je například fixní IV (v~tom případě ale dojde ke stejnému problému jako u~ECB módu --- dva stejně začínající sektory vytvoří stejný šifrovaný text), náhodný IV, posloupnost čísel nebo IV generovaný z~unikátního čísla nonce (z~anglického \uv{\emph{n}umber used \emph{once}}).\cite{Kohnoc2010}
+
+V~BitLockeru jsou použity pro výše zmíněné šifry následující inicializační vektory:
+\begin{itemize}
+	\item u~AES-CBC číslo sektoru zašifrované pomocí AES-ECB s~klíčem použitým pro šifrování dat,
+	\item u~AES-XTS pouze jednoduché číslo sektoru uložené jako 128bit little indian a
+	\item u~AES-CCM nonce uložené společně s~klíčem, který je pomocí AES-CCM zašifrován. \cite{Metz2011}
+\end{itemize}
 
 \n{2}{Diskový formát}
 
