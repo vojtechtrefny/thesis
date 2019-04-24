@@ -12,10 +12,19 @@ Formátování druhého odstavce. Text text text text text text text text text t
 % ============================================================================ %
 \cast{Teoretická část}
 
-\n{1}{Šifrování disku}
+\n{1}{Šifrování disku}\label{sec:fde}
+
+Šifrování disku, anglicky \emph{Full Disk Encryption} (FDE) nebo \emph{Whole Disk Encryption} je proces, při kterém dochází k~šifrování všech dat na disku, včetně systémových souborů operačního systému. K~datům na disku pak má uživatel přístup pouze po úspěšné autentizaci. Data na disku zůstávají stále šifrovaná a teprve, když uživatel potřebuje číst či zapisovat data, potřebné sektory disku jsou transparentně dle potřeby před čtením dešifrovány a před zápisem jsou opět zašifrovány. Šifrování disku může být řešeny softwarově, ale i hardwarově v~podobě disků, které šifrování implementují ve svém firmwaru.
+
+Ačkoli existují další technologie, které šifrují pouze části dat uložených na blokových zařízeních, například v~podobě speciálních šifrovaných kontejnerů, šifrování pouze vybraných diskových oddílů nebo jen jednotlivých souborů či složek, pouze šifrování celého disku zaručuje maximální možnou bezpečnost, kdy jsou šifrována všechna citlivá data včetně například odkládacích oddílů (swap), dočasných souborů a metadat o~ši\-fro\-va\-ných souborech.\cite{Scarfone2007}
+
+Ani šifrování disku však nepředstavuje stoprocentní ochranu dat. Pokud útočník získá přístup k~počítači s~běžícím systémem, může z~jeho paměti získat šifrovací klíč, který je v~ní po dobu běhu systému uložen. Ačkoli se obecně předpokládá, že po přerušení napájení jsou data z~operační paměti okamžitě ztracena, výzkumníci z~Princetonské univerzity prokázali, že data je možné přečíst ještě několik sekund po přerušení napájení, a v~případě zchlazení paměti na -50 $^{\circ}$C, je po deseti minutách poškozeno dokonce méně než jedno procento dat. Díky tomu je možné po přendání paměťových modulů do jiného stroje přečíst jejich obsah a nalézt v~něm uložené klíče.\cite{Halderman20090501}
 
 \n{1}{BitLocker}
-text
+
+BitLocker představuje technologii pro šifrování disku od společnosti Microsoft. BitLocker byl představen v~roce 2006 a poprvé jej uživatelé mohli použít v~operačním systému Windows Vista. Původním cílem BitLockeru byla ochrana dat na odcizených nebo ztracených přenosných počítačích.\cite{Ferguson2006} BitLocker dokáže ochránit všechna data operačního systému Windows s~výjimkou systémového oddílu, který obsahuje Windows Boot Manager.\cite{Hall20191}
+
+V~této části si stručně představíme kryptografické funkce, které BitLocker používá, formát uložení dat a metadat na disku a používané šifrovací klíče a způsoby jejich ochrany.
 
 \n{2}{Použité kryptografické funkce}\label{sec:algorithms}
 
@@ -145,7 +154,7 @@ V~BitLockeru jsou použity pro výše zmíněné šifry následující inicializ
 
 \n{2}{Diskový formát}
 
-Pro samotnou práci s~BitLocker zařízením v~linuxovém prostředí je nejdůležitější formát, tedy způsob, jakým jsou na disku uložena data. Protože je pomocí BitLockeru možné vytvořit šifrovaný flash disk, který lze použít na jiném počítači pouze za znalosti hesla, je zřejmé, že někde na samotném disku jsou uložena všechna potřebná metadata pro jeho \uv{odemčení}\footnote{U šifrovaných úložných zařízení se běžně používá termín \emph{odemčení} pro jeho \uv{připravení} pro čtení. Odemčení dává větší smysl, než dešifrování, protože data se dešifrují až při jejich čtení (abychom se vyhnuli relativně pomalému dešifrování dat, která nebudou čtena). Při odemčení se tedy pouze z~metadat (nebo z~jiného hardwaru, jako například TPM) získá (de)šifrovací klíč a připraví se (virtuální) zařízení, ze kterého lze číst data v~otevřené podobě.}\todo{TODO: Přesunout do úvodu} v~(alespoň částečně) otevřené podobě\footnote{Například populární nástroj VeraCrypt na zašifrovaném disku žádná metadata v~otevřené podobě nemá.\cite{VeraCrypt2019}}.
+Pro samotnou práci s~BitLocker zařízením v~linuxovém prostředí je nejdůležitější formát, tedy způsob, jakým jsou na disku uložena data. Protože je pomocí BitLockeru možné vytvořit šifrovaný flash disk, který lze použít na jiném počítači pouze za znalosti hesla, je zřejmé, že někde na samotném disku jsou uložena všechna potřebná metadata pro jeho \uv{odemčení}\footnote{U šifrovaných úložných zařízení se běžně používá termín \emph{odemčení} pro jeho \uv{připravení} pro čtení. Odemčení dává větší smysl, než dešifrování, protože data se dešifrují až při jejich čtení, jak již bylo vysvětleno v~části \ref{sec:fde}. Při odemčení se tedy pouze z~metadat (nebo z~jiného hardwaru, jako například TPM) získá (de)šifrovací klíč a připraví se (virtuální) zařízení, ze kterého lze číst data v~otevřené podobě.} v~(alespoň částečně) otevřené podobě\footnote{Například populární nástroj VeraCrypt na zašifrovaném disku žádná metadata v~otevřené podobě nemá.\cite{VeraCrypt2019}}.
 
 \begin{figure}[h]
 		\centering
