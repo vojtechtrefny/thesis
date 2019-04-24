@@ -36,9 +36,9 @@ AES-CBC je standardní široce používaná bloková šifra, která je ve starš
 
 Původní návrh CBC módu byl patentován v~roce 1978\cite{Ehrsam1978} a řešil problém staršího ECB módu, při jehož použití vzniká zašifrováním dvou stejných bloků otevřeného textu stejný šifrovaný text. Tento problém CBC řeší tak, že každý blok otevřeného textu je napřed XORován s~předchozím šifrovaným blokem. Standardně tedy šifrování v~CBC módu probíhá následovně
 
-\begin{align*}
-C_i = E(K, P_i \oplus C_{i-1}) \quad \text{pro}\ i = 1, \dots, k~\\
-\end{align*}
+\begin{align}
+C_i = E(K, P_i \oplus C_{i-1}) \quad \text{pro}\ i = 1, \dots, k~\\ \nonumber
+\end{align}
 
 kde $C_i$ je výsledný šifrovaný blok, $K$ klíč, $P_i$ blok otevřeného textu a $C_{i-1}$ předchozí šifrovaný blok. Protože pro první blok textu neexistuje žádný předchozí blok $C_0$, se kterým by mohl být XORován, zavádí se nová hodnota, takzvaný \emph{inicializační vektor}, který se použije pro první blok místo předchozího šifrovaného bloku.\cite{Kohnoc2010}
 
@@ -46,9 +46,9 @@ kde $C_i$ je výsledný šifrovaný blok, $K$ klíč, $P_i$ blok otevřeného te
 
 Pro BitLocker je v~případě AES-CBC použito jako inicializační vektor číslo sektoru, navíc ještě zašifrované stejným klíčem, který je využit i pro šifrování textu.
 
-XORování s~předchozím blokem zavádí to AES-CBC potenciální slabinu, kdy při znalosti umístění bloku otevřeného textu lze pozměnit předchozí blok tak, aby v~následujícím bloku došlo k~přehození hodnoty určeného bitu. Tím se sice znehodnotí informace uložené ve změněném bloku (který bude dešifrován na náhodná data), ale můžeme tak změnit důležitou informaci obsaženou v~bloku následujícím podle potřeba útočníka.\cite{Regalado2013}
+XORování s~předchozím blokem zavádí to AES-CBC potenciální slabinu, kdy při znalosti umístění bloku otevřeného textu lze pozměnit předchozí blok tak, aby v~následujícím bloku došlo k~přehození hodnoty určeného bitu. Tím se sice znehodnotí informace uložené ve změněném bloku (který bude dešifrován na náhodná data), ale můžeme tak změnit důležitou informaci obsaženou v~bloku následujícím podle potřeby útočníka.\cite{Regalado2013}
 
-U~BitLockeru může tento útok představovat problém, pokud útočník zná přesné rozložení dat na disku, což je možné obzvlášť u~počítačů instalovaných z~předpřipravených obrazů, pokud k~nim má útočník přístup. Útočník pak může změnit některé důležité části systému, například spouštěné binární soubory.\cite{Ferguson2006,Rosendorf2013} AES-CBC neobsahuje žádnou autentizační část a nechrání tedy před podobným (ale ani náhodnými, například v~případě poškození disku) změnami šifrovaných dat tak, jako jiné šifry, jako například AES-CCM.
+U~BitLockeru může tento útok představovat problém, pokud útočník zná přesné rozložení dat na disku, což je možné obzvlášť u~počítačů instalovaných z~předpřipravených obrazů, pokud k~nim má útočník přístup. Útočník pak může změnit některé důležité části systému, například spouštěné binární soubory.\cite{Ferguson2006,Rosendorf2013} AES-CBC neobsahuje žádnou autentizační část a nechrání tedy před podobnými (ale ani náhodnými, například v~případě poškození disku) změnami šifrovaných dat tak, jako jiné šifry, jako například AES-CCM.
 
 \n{3}{Elephant difuzér}
 
@@ -60,9 +60,9 @@ Zjednodušené schéma fungování šifrování pomocí AES-CBC s~Elephant difuz
 
 Prvním krokem při použití difuzéru je odvození takzvaného sektorového klíče $K_s$. Ten se získá z~čísla sektoru a TWEAK klíče ($K_{TWEAK}$) následujícím způsobem:
 
-\begin{align*}
-K_s = E(K_{TWEAK}, e(s)) \parallel E(K_{TWEAK}, e'(s)) \\
-\end{align*}
+\begin{align}
+K_s = E(K_{TWEAK}, e(s)) \parallel E(K_{TWEAK}, e'(s)) \\ \nonumber
+\end{align}
 
 kde $e(s)$ je číslo sektoru uložené jako 64bit little endian (s~vynulovanými nepoužitými bity) a $e'(s)$ je stejné jako $e(s)$, kromě posledního bajtu, který je nastaven na 128 (0x80). Výsledný 128bit klíč je pak následně podle potřeby zřetězen, aby odpovídal délce šifrovaného sektoru.\cite{Ferguson2006,Rosendorf2013,Kumar2008}
 
@@ -91,28 +91,28 @@ AES-XTS je speciálně navržená bloková šifra pro šifrování dat uložený
 
 Šifrování jednoho bloku pomocí AES-XTS pak probíhá následujícím způsobem
 
-\begin{align*}
+\begin{align}
 T &= E (K_2 , i) \otimes \alpha^j \\
-C &= E (K_1 , P \oplus T) \oplus T \\
-\end{align*}
+C &= E (K_1 , P \oplus T) \oplus T \\ \nonumber
+\end{align}
 
 kde $E$ je použitá šifrovací funkce (v~tomto případě AES), $C$ je výsledný šifrovaný blok, $P$ blok otevřeného textu, $K_1$ a $K_2$ jsou klíče, $i$ číslo sektoru, $\alpha^j$ prvek $GF(2^{128})$ odpovídající polynomiálnímu $x$ (například $10_2$), přičemž $GF$ je Galoisovo těleso.\cite{IEEE2008}
 
-Z~výše uvedeného vyplývá, že pro AES-XTS jsou použity dva různé klíče --- jeden pro šifrování čísla sektoru (inicializačního vektoru) a druhý pro šifrování samotného bloku otevřeného textu. Proto jsou klíče pro AES-XTS dvakrát větší, než kolik by vyžadovalo samotné AES, klíč pro 128bit AES-XTS tedy bude mít délku 256bit.
+Z~výše uvedeného vyplývá, že pro AES-XTS jsou použity dva různé klíče --- jeden pro šifrování čísla sektoru (inicializačního vektoru) a druhý pro šifrování samotného bloku otevřeného textu. Proto jsou klíče pro AES-XTS dvakrát větší, než kolik by vyžadovalo samotné AES. Klíč pro 128bit AES-XTS tedy bude mít délku 256bit.
 
 Stejně jako AES-CBC zmíněný v~části \ref{sec:aes-cbc}, ani AES-XTS neobsahuje žádnou autentizaci a nechrání tedy před změnami šifrovaného textu.
 
 \n{3}{AES-CCM}
 
-Poslední z~šifrovacích funkcí použitých v~BitLockeru je AES s~CCM módem, která je použita pouze v~rámci metadat na ochranu uložených klíčů. AES-CCM představuje zástupce šifer používaných pro takzvané autentizované šifrování, které zajišťují jako integritu, tak důvěrnost dat. Toho je typicky docíleno spojením šifrování a MAC.\cite{ISO2009}
+Poslední z~šifrovacích funkcí použitých v~BitLockeru je AES s~CCM módem, která je použita pouze v~rámci metadat na ochranu uložených klíčů. AES-CCM představuje zástupce šifer používaných pro takzvané autentizované šifrování, které zajišťují jak integritu, tak důvěrnost dat. Toho je typicky docíleno spojením šifrování a MAC.\cite{ISO2009}
 
 CCM mód představuje kombinaci dvou existujících technologií --- CTR módu, který zajišťuje samotné šifrování a CBC-MAC, který zajišťuje autentizaci, přičemž pro obě části šifry se používá stejný klíč.
 
-Postup při dešifrování a verifikace, který nás při práci s~BitLocker zařízeními zajímá nejvíce, je následující: Na vstupu funkce jsou zašifrovaná data, řetězec pro verifikaci (MAC tag) a nonce použité při generování šifrovaných dat. Šifrovaný text je dešifrován v~CTR módu, jehož výsledkem jsou otevřená data a MAC. Následně se pomocí CBC-MAC ověří dešifrovaný MAC a pokud je verifikace úspěšná, vrátí CCM funkce dešifrovaná data.\cite{Dworkin2004}
+Postup při dešifrování a verifikaci, který nás při práci s~BitLocker zařízeními zajímá nejvíce, je následující: Na vstupu funkce jsou zašifrovaná data, řetězec pro ve\-ri\-fi\-ka\-ci (MAC tag) a nonce použité při generování šifrovaných dat. Šifrovaný text je dešifrován v~CTR módu, jehož výsledkem jsou otevřená data a MAC. Následně se pomocí CBC-MAC ověří dešifrovaný MAC a pokud je verifikace úspěšná, vrátí CCM funkce dešifrovaná data.\cite{Dworkin2004}
 
 Ačkoli je CCM mód obvykle používán pro zajištění, že s~šifrovanými daty nebylo nijak manipulováno (jako například v~IPsec\cite{Housley2005}), v~BitLockeru lze verifikační krok využít také k~rychlému zjištění, zda bylo uživatelem zadáno správné heslo, protože v~případě použití nesprávného hesla MAC autentizace také selže a není tak třeba složitě zjišťovat, zda dešifrovaný heslem chráněný klíč je ve skutečnosti správný či nikoli.
 
-AES-CCM bylo kvůli zajištění autentizace také zvažováno pro šifrování samotných uložených dat. Problémem v~tomto případě ale je fakt, že šifrovaná dat nemohou být větší, než data otevřená --- potřebný MAC tag není možné uložit společně s~šifrovaným blokem a ukládání MAC tagu do jiného bloku společně s~MAC tagy pro další bloky porušuje atomicitu zápisu sektoru a v~případě poškození sektoru s~MAC tagy bude ztraceno více sektorů s~daty, která nelze při dešifrování ověřit.\cite{Ferguson2006}
+AES-CCM bylo kvůli zajištění autentizace také zvažováno pro šifrování samotných uložených dat. Problémem v~tomto případě je ale fakt, že šifrovaná dat nemohou být větší, než data otevřená --- potřebný MAC tag není možné uložit společně s~šifrovaným sektorem a ukládání MAC tagu do jiného sektoru společně s~MAC tagy pro další sektoru porušuje atomicitu zápisu sektoru a v~případě poškození sektoru s~MAC tagy bude ztraceno více sektorů s~daty, která nelze při dešifrování ověřit.\cite{Ferguson2006}
 
 \n{3}{Odvození klíče z~hesla}\label{sec:kdf}
 
@@ -154,7 +154,7 @@ V~BitLockeru jsou použity pro výše zmíněné šifry následující inicializ
 
 \n{2}{Diskový formát}
 
-Pro samotnou práci s~BitLocker zařízením v~linuxovém prostředí je nejdůležitější formát, tedy způsob, jakým jsou na disku uložena data. Protože je pomocí BitLockeru možné vytvořit šifrovaný flash disk, který lze použít na jiném počítači pouze za znalosti hesla, je zřejmé, že někde na samotném disku jsou uložena všechna potřebná metadata pro jeho \uv{odemčení}\footnote{U šifrovaných úložných zařízení se běžně používá termín \emph{odemčení} pro jeho \uv{připravení} pro čtení. Odemčení dává větší smysl, než dešifrování, protože data se dešifrují až při jejich čtení, jak již bylo vysvětleno v~části \ref{sec:fde}. Při odemčení se tedy pouze z~metadat (nebo z~jiného hardwaru, jako například TPM) získá (de)šifrovací klíč a připraví se (virtuální) zařízení, ze kterého lze číst data v~otevřené podobě.} v~(alespoň částečně) otevřené podobě\footnote{Například populární nástroj VeraCrypt na zašifrovaném disku žádná metadata v~otevřené podobě nemá.\cite{VeraCrypt2019}}.
+Pro samotnou práci s~BitLocker zařízením v~linuxovém prostředí je nejdůležitější formát, tedy způsob, jakým jsou na disku uložena data. Protože je pomocí BitLockeru možné vytvořit šifrovaný flash disk, který lze použít na jiném počítači pouze za znalosti hesla, je zřejmé, že někde na samotném disku jsou uložena všechna potřebná metadata pro jeho \uv{odemčení}\footnote{U šifrovaných úložných zařízení se běžně používá termín \emph{odemčení} pro jeho \uv{připravení} pro čtení. Odemčení dává větší smysl, než dešifrování, protože data se dešifrují až při jejich čtení, jak již bylo vysvětleno v~části \ref{sec:fde}. Při odemčení se tedy pouze z~metadat (nebo z~jiného hardwaru, jako například TPM) získá (de)šifrovací klíč a připraví se (virtuální) zařízení, ze kterého lze číst data v~otevřené podobě.} v~(alespoň částečně) otevřené podobě\footnote{Například populární nástroj TrueCrypt/VeraCrypt na zašifrovaném disku žádná metadata v~otevřené podobě nemá.\cite{Broz20141}}.
 
 \begin{figure}[h]
 		\centering
@@ -266,12 +266,11 @@ Popis struktury NTFS hlavičky je převzat z~\cite{Carrier2005}, popis struktury
 		\label{fig:bitlocker-header}
 \end{figure}
 
-Z~pohledu identifikace BitLocker zařízení je nejdůležitější částí hlavičky 8 bajtů na offsetu 3, které se u~NTFS formátu nazývají \emph{OEM název} a které slouží pro rychlou identifikace zařízení. V~linuxových systémech se podobné identifikátory obvykle nazývají \emph{signatura}. \todo{TODO: To by asi chtělo citaci.} Pro BitLocker formát je (u~všech verzí) signatura v~ASCII podobě \texttt{-FVE-FS-}\cite{Caseyc2010}.
+Z~pohledu identifikace BitLocker zařízení je nejdůležitější částí hlavičky 8 bajtů na offsetu 3, které se u~NTFS formátu nazývají \emph{OEM název} a které slouží pro rychlou identifikace zařízení. V~linuxových systémech se podobné identifikátory obvykle nazývají \emph{signatura}\cite{Binnie2016}. Pro BitLocker formát je (u~všech verzí) signatura v~ASCII podobě \texttt{-FVE-FS-}\cite{Caseyc2010}.
 
 Pro další práci s~BitLockerem není většina položek hlavičky zajímavá. Výjimku tvoří GUID identifikátor uložený na offsetu 160 (16 bajtů dlouhý UTF-8 textový řetězec) a trojice 32bitových bezznaménkových celočíselných (\texttt{uint32}) hodnot na offsetech 176, 184 a 192, které obsahují umístění (jako relativní offset od začátku zkoumaného zařízení) tří bloků FVE metadat. Všechny tyto čtyři hodnoty jsou v~BitLocker hlavičce umístěny na offsetech, které jsou v~NTFS součástí \emph{bootcode}.
 
 Umístění všech výše zmíněných \uv{důležitých} částí BitLocker hlavičky je zobrazeno na obrázku \ref{fig:bitlocker-header}.
-
 
 \n{3}{FVE metadata}\label{sec:fve-metadata}
 
@@ -621,7 +620,7 @@ Key protector 1:
 
 Podpora BitLockeru, kterou libbde poskytuje, je velice rozsáhlá a dokáže pracovat se všemi existujícími formáty a verzemi. Dokumentace pro tuto knihovnu také obsahuje obsáhlý popis BitLockeru, formátu hlaviček a metadat\cite{Metz2011}, který byl neocenitelný při přípravě této diplomové práce.
 
-Bohužel i přes tyto rozsáhlé možnosti má knihovna libbde několik vlastností, které z~ní dělají nevhodného kandidáta na nástroj pro každodenní použití. Předně je zde problém s~neexistující podporou pro zápis --- otevřené zařízení je připojitelné pouze pro čtení a ačkoli je podpora pro zápis plánována již od roku 2014\footnote{libbde Issue \#1: Add write support --- https://github.com/libyal/libbde/issues/1}\todo{TODO: citaci nebo stačí takhle?}, stále není k~dispozici. Kvůli tomu se může jednat o~nástroj vhodný pro forenzní analýzu nebo záchranu dat, ale například pro vytvoření šifrovaného flash disku, který bude sloužit ke sdílení dat mezi Windows a Linuxem, je toto řešení nepoužitelné.
+Bohužel i přes tyto rozsáhlé možnosti má knihovna libbde několik vlastností, které z~ní dělají nevhodného kandidáta na nástroj pro každodenní použití. Předně je zde problém s~neexistující podporou pro zápis --- otevřené zařízení je připojitelné pouze pro čtení a ačkoli je podpora pro zápis plánována již od roku 2014\footnote{libbde Issue \#1: Add write support --- https://github.com/libyal/libbde/issues/1}, stále není k~dispozici. Kvůli tomu se může jednat o~nástroj vhodný pro forenzní analýzu nebo záchranu dat, ale například pro vytvoření šifrovaného flash disku, který bude sloužit ke sdílení dat mezi Windows a Linuxem, je toto řešení nepoužitelné.
 
 Z~hlediska případného dalšího vývoje nebo použití v~jiných projektech, je také minimálně diskutabilní použití některých technologií. Knihovna libbde je součástí většího projektu \emph{libyal}\footnote{Overview of the libyal projects --- https://github.com/libyal/libyal/wiki/Overview}, který obsahuje několik desítek různých knihoven. Jednou z~nich je i knihovna \emph{libaes}, která poskytuje multiplatformní implementaci AES a kterou libbde používá pro dešifrování dat. Používání \uv{vlastních} implementací šifrování je obecně nedoporučováno a preferuje se použití standardních knihoven jako například \emph{libopenssl} nebo \emph{libgcrypt}, které mají teoreticky zaručit správnost implementace kryptografických algoritmů. Použitá knihovna libaes například při dešifrování klíčů kvůli špatné implementaci AES-CCM vůbec nekontroluje přiložený MAC tag\footnote{libaes Issue \#2: AES CCM implementation seems to different / non-compliant than others --- https://github.com/libyal/libcaes/issues/2}.
 
