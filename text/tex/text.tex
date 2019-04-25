@@ -189,7 +189,7 @@ Stejně jako u~většiny diskových formátů, je i u~BitLockeru na začátku di
 
 BitLocker hlavička zabírá celkem 512 bajtů a je u~ní patrná inspirace u~souborového systému NTFS. V~tabulce \ref{tab:bitlocker-header} jsou zobrazeny jednotlivé známé položky hlavičky BitLockeru a pro srovnání také stejné položky v~hlavičce souborového systému NTFS. Struktura formátu BitLocker není společností Microsoft nikde veřejně zcela kompletně zdokumentována, význam jednotlivých položek tedy nemusí být vždy přesně znám.
 
-Popis struktury NTFS hlavičky je převzat z~\cite{Carrier2005}, popis struktury BitLocker hlavičky je pak částečně převzata z~\cite{Metz2011}, částečně z~\cite{Ferguson2006} a částečně výsledkem vlastního zkoumání.
+Popis struktury NTFS hlavičky je převzat z~\cite{Carrier2005}, popis struktury BitLocker hlavičky je pak částečně převzata z~\cite{Metz2011}, částečně z~\cite{Ferguson2006}, částečně z~\cite{Kornblum2009} a částečně výsledkem vlastního zkoumání.
 
 \begin{table}[h]
 \catcode`\-=12
@@ -280,7 +280,7 @@ FVE metadata se skládají z~celkem tří částí -- hlavičky FVE bloku (\emph
 
 Důležité položky v~obou hlavičkách, jejich velikosti a offsety (vztažené vůči začátku dané hlavičky) jsou uvedeny v~tabulce \ref{tab:fve-header}. Kompletní struktura obou hlaviček je součástí přílohy \todo{TODO: odkaz na přílohu}.
 
-\tab{Zjednodušená struktura FVE metadat}{tab:fve-header}{0.65}{|l|l|l|}{
+\tab{Zjednodušená struktura FVE metadat\cite{Metz2011}}{tab:fve-header}{0.65}{|l|l|l|}{
   \hline
    \multicolumn{3}{|c|}{\textbf{Hlavička FVE bloku}} \\ \hline
    offset & velikost & popis  \\ \hline
@@ -305,7 +305,7 @@ Za výše uvedenou hlavičkou se nachází blíže nespecifikované množství F
 
 Jelikož známe celkovou velikost FVE metadat (je uvedena v~hlavičce, viz tabulka \ref{tab:fve-header}) a celková velikosti hlaviček FVE metadat je pevná (64 a 48 bajtů), pro přečtení všech záznamů stačí číst data ve smyčce, dokud nedojdeme na konec metadat, nebo dokud následující záznam nemá nulovou velikost.
 
-Struktura FVE je relativně jednoduchá a je popsaná v~tabulce \ref{tab:fve-entry}. Důležitou součástí je velikost záznamu, protože podle svého typu může mít různou délku.
+Struktura FVE je relativně jednoduchá a je popsaná v~tabulce \ref{tab:fve-entry}. Důležitou součástí je velikost záznamu, protože podle svého typu může mít různou délku.\cite{Kumar2008,Metz2011}
 
 \tab{Struktura FVE záznamu}{tab:fve-entry}{0.65}{|l|l|l|}{
   \hline
@@ -385,9 +385,9 @@ FVEK je v~metadatech uložen v~záznamu typu \emph{FVEK} s~hodnotou \emph{AES-CC
 }
 \footnotetext{Velikost šifrovaného klíče záleží na použité šifře --- 12 bajtů vždy připadne na informace o~klíči a 32 bajtů v~tomto případě připadá na samotný klíč, jelikož je použit 128bit AES.}
 
-Struktura dat pro FVEK v~metadatovém záznamu je popsána v~tabulce \ref{tab:fvek-data}. Kromě samotného klíče obsahují datum a čas jeho vytvoření a nonce. Nonce (z~anglického \uv{\emph{n}umber used \emph{once}}) je unikátní číslo (v~tomto případě prostá posloupnost začínající od nuly a zvyšující se s~každým klíčem) sloužící společně s~datem a časem vytvoření jako inicializační vektor pro dešifrování\cite{Kohnoc2010}.
+Struktura dat pro FVEK v~metadatovém záznamu je popsána v~tabulce \ref{tab:fvek-data}. Kromě samotného klíče obsahují datum a čas jeho vytvoření a nonce.\cite{Metz2011,Kornblum2009} Nonce (z~anglického \uv{\emph{n}umber used \emph{once}}) je unikátní číslo (v~tomto případě prostá posloupnost začínající od nuly a zvyšující se s~každým klíčem) sloužící společně s~datem a časem vytvoření jako inicializační vektor pro dešifrování\cite{Kohnoc2010}.
 
-Samotná zašifrovaná část klíče obsahuje kromě samotného klíče také další data o~klíči samotném --- velikost, verze a šifrovací metoda použitá pro data zašifrovaná pomocí FVEK. Jejich struktura je popsána v~tabulce \ref{tab:fvek-data-decrypted}.
+Samotná zašifrovaná část klíče obsahuje kromě samotného klíče také další data o~klíči samotném --- velikost, verze a šifrovací metoda použitá pro data zašifrovaná pomocí FVEK. Jejich struktura je popsána v~tabulce \ref{tab:fvek-data-decrypted}.\cite{Metz2011,Kornblum2009}
 
 \tab{Obsah FVEK po dešifrování}{tab:fvek-data-decrypted}{0.65}{|l|l|l|}{
   \hline
@@ -440,7 +440,7 @@ V~odstavci výše je několikrát zmíněno \emph{heslo}, ale VMK může být ch
 
 Z~pohledu této práce je nejobvyklejším protektorem právě heslo, protože použití BitLocker zařízení v~linuxovém prostředí se dá předpokládat primárně u~flash disků, u~nichž se používá ochrana heslem\footnote{Ochrana pomocí TPM nedává u~přenosných disků smysl, protože TPM čipy jsou nedělitelnou součástí hardwaru a takto chráněný disk by nešlo na jiném počítači dešifrovat.}.
 
-Pro každé vytvořené BitLocker se kromě \uv{primární} ochrany (v~našem případě typicky hesla) vytváří ještě jeden VMK chráněný takzvaným záložním heslem. Způsob ochrany je u~něj stejný jako u~VMK, který je chráněný heslem, rozdíl je v~tom, že heslo zadává uživatel, kdežto záložní heslo je vygenerované a uživateli je při vytváření \uv{předáno} v~podobě souboru, který obsahuje 48 čísel. U~něj se předpokládá, že si jej uživatel buď vytiskne nebo bezpečně uloží v~elektronické podobě. U~strojů přihlášených v~síti Active Directory, lze také záložní klíče automaticky zálohovat na doménovém serveru. Pomocí záložního hesla lze pak zařízení odemknout stejně, jako při použití \uv{normálního} hesla a pomocí nástrojů obsažených v~základní instalaci Windows nastavit nové heslo (nebo nastavit nové TPM, či jiný způsob ochrany).\cite{Hall2019}
+Pro každé vytvořené BitLocker se kromě \uv{primární} ochrany (v~našem případě typicky hesla) vytváří ještě jeden VMK chráněný takzvaným záložním heslem. Způsob ochrany je u~něj stejný jako u~VMK, který je chráněný heslem, rozdíl je v~tom, že heslo zadává uživatel, kdežto záložní heslo je vygenerované a uživateli je při vytváření \uv{předáno} v~podobě souboru, který obsahuje 48 čísel. U~něj se předpokládá, že si jej uživatel buď vytiskne nebo bezpečně uloží v~elektronické podobě. U~strojů přihlášených v~síti Active Directory, lze také záložní klíče automaticky zálohovat na doménovém serveru. Pomocí záložního hesla lze pak zařízení odemknout stejně, jako při použití \uv{normálního} hesla a pomocí nástrojů obsažených v~základní instalaci Windows nastavit nové heslo (nebo nastavit nové TPM, či jiný způsob ochrany).\cite{Hall2019,MS2011}
 
 Struktura VMK, naznačená v~tabulce \ref{tab:vmk-data}, je ovlivněna tím, že samotný klíč může být chráněn různými způsoby a je pro něj tedy třeba ukládat různá metadata, a i samotný klíč může být potřeba v~některých případech ukládat v~různých podobách.
 
@@ -583,7 +583,7 @@ Struktura klíčů VMK a FVEK se u~starší verze BitLockeru nijak neliší. Jed
 
 Asi největší odlišnost u~starších verzí je ve způsobu uložení šifrovaných dat a to především v~umístění NTFS hlavičky otevřeného zařízení. Zatímco u~novější verze BitLockeru je tato hlavička zašifrovaná a uložená na speciálním místě zapsaném ve FVE metadatech (způsob umístění šifrované NTFS hlavičky je popsán v~části \ref{sec:data-map}), v~původní variantě BitLockeru je NTFS hlavička uložena nezašifrovaná a to přímo na svém \uv{původním} místě na začátku disku. Vzhledem k~malé odlišnosti původní hlavičky BitLockeru a hlavičky NTFS stačí při dešifrování nahradit určité části BitLocker hlavičky a výsledkem je validní NTFS hlavička pro dešifrované zařízení. 
 
-Nahradit je třeba signaturu --- místo původního \texttt{-FVE-FS-} dosadíme \texttt{NTFS} (standardní signatura souborového systému NTFS) a offset první kopie FVE metadat --- ten nahradí adresa prvního clusteru MFT, která je uložen ve FVE metadatech.
+Nahradit je třeba signaturu --- místo původního \texttt{-FVE-FS-} dosadíme \texttt{NTFS} (standardní signatura souborového systému NTFS) a offset první kopie FVE metadat --- ten nahradí adresa prvního clusteru MFT, která je uložen ve FVE metadatech.\cite{Metz2011}
 
 Poslední rozdíl v~šifrovaných datech spočívá v~inicializačním vektoru použitém pro jejich (de)šifrování. Stejně jako u~novější verze BitLockeru se zde použije číslo sektoru, ale nikoli \uv{prosté}, ale zašifrované pomocí TWEAK klíče.
 
