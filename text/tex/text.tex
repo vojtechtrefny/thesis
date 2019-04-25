@@ -278,7 +278,7 @@ Samotná výše popsaná hlavička formátu BitLocker obsahuje především info
 
 FVE metadata se skládají z~celkem tří částí -- hlavičky FVE bloku (\emph{FVE metadata block header}), samotné FVE hlavičky (\emph{FVE metadata header}) a různého množství FVE záznamů (\emph{FVE metadata entry}, které obsahují samotné klíče a další důležité informace\cite{Metz2011}\footnote{Toto dělení zavádí Joachim Metz v~\cite{Metz2011}. Teoreticky by se daly dvě první části metadat spojit, protože na disku se nachází vždy hned za sebou, ale rozdělení dává smysl, protože první část se týká popisu samotných metadat (signatura, verze, umístění všech tří bloků), zatímco druhá část už obsahuje samotná metadata (GUID, čas vytvoření, použitý šifrovací algoritmus).}.
 
-Důležité položky v~obou hlavičkách, jejich velikosti a offsety (vztažené vůči začátku dané hlavičky) jsou uvedeny v~tabulce \ref{tab:fve-header}. Kompletní struktura obou hlaviček je součástí přílohy \todo{TODO: odkaz na přílohu}.
+Důležité položky v~obou hlavičkách, jejich velikosti a offsety (vztažené vůči začátku dané hlavičky) jsou uvedeny v~tabulce \ref{tab:fve-header}. Kompletní struktura obou hlaviček je součástí přílohy \ref{attachment:metadata}.
 
 \tab{Zjednodušená struktura FVE metadat\cite{Metz2011}}{tab:fve-header}{0.65}{|l|l|l|}{
   \hline
@@ -802,7 +802,7 @@ Implementovaný nástroj, pojmenovaný \texttt{bitlockersetup}, má několik pod
 	\item \textbf{uuid} který vypíše UUID vybraného BitLocker zařízení.
 \end{itemize}
 
-Kompletní manuálová stránka pro bitlockersetup je dostupná v~příloze \todo{TODO: link na přílohu}. Ukázka odemčení BitLocker zařízení pomocí bitlockersetup je na obrázku \ref{fig:bitlockersetup-open}.
+Kompletní manuálová stránka pro bitlockersetup je dostupná v~příloze \ref{attachment:manpage}. Ukázka odemčení BitLocker zařízení pomocí bitlockersetup je na obrázku \ref{fig:bitlockersetup-open}.
 
 \begin{figure}[h]
 		\centering
