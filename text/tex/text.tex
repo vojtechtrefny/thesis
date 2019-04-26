@@ -4,9 +4,14 @@
 
 % ============================================================================ %
 \nn{Úvod}
-První odstavec pod nadpisem se neodsazuje, ostatní ano (pouze první řádek, odsazení vertikální mezy odstavci je typycké pro anglickou sazbu; czech babel toto respektuje, netřeba do textu přidávat jakékoliv explicitní formátování, viz ukázka sazby tohoto textu s~následujícím odstavcem).
 
-Formátování druhého odstavce. Text text text text text text text text text text text text.
+Šifrování dat je jedním ze základních způsobů jejich ochrany obzvlášť na přenosných zařízeních, jako jsou notebooky nebo externí disky. Bohužel v~současné době neexistuje žádné řešení, které by spolehlivě fungovalo v~heterogenním prostředí a v~případě externích disků, které mají být používány jak v~prostředí Microsoft Windows, tak v~linuxovém prostředí, je třeba se spoléhat buď na nástroje třetích stran, nebo na ne vždy funkční či uživatelsky přívětivá řešení, která v~jednom prostředí zajistí podporu pro nativní šifrování prostředí druhého.
+
+Cílem této práce je prozkoumat technologii BitLocker, která představuje nativní implementaci šifrování disku v~operačním systému Microsoft Windows, a podle možností implementovat nové, případně upravit stávající nástroje pro práci s~blokovými zařízeními v~prostředí operačního systému GNU/Linux tak, aby uživatel byl schopen s~BitLocker zařízeními pracovat stejně jako se zařízeními šifrovanými pomocí nativních linuxových technologií.
+
+Teoretická část této práce v~první kapitole popisuje šifrování disku obecně. V~druhé kapitole se zaměřuje na samotnou technologii BitLocker, jí používané kryptografické funkce, diskový formát, druhy použitých klíčů a způsoby jejich ochrany a způsobem uložení dat na šifrovaném zařízení. Třetí kapitola pak představuje existující řešení pro práci s~BitLockerem v~linuxovém prostředí a jejich přednosti a nedostatky.
+
+Praktická část této práce ve čtvrté kapitole obecně představuje technologie a možná řešení pro podporu BitLocker zařízení v~linuxovém prostředí. Pátá kapitola se zaměřuje na kernelový ovladač Device Mapper, který je možno použít pro práci se šifrovanými blokovými zařízeními. V~šesté kapitole je popsán nově vytvořený nástroj pracující s~BitLocker zařízeními a BitLocker metadaty. V~sedmé části je pak představen systémový démon UDisks, který poskytuje nástroje pro práci s~blokovými zařízeními koncovým uživatelům systému, a jsou zde také popsány úpravy, které bylo třeba provést, aby byla podpora BitLocker zařízení dostupná v~grafickém rozhraní.
 
 
 % ============================================================================ %
@@ -1021,7 +1026,16 @@ Na obrázku \ref{fig:bitlocker-xfce} je ukázka toho chování z~prostředí Xfc
 
 % ============================================================================ %
 \nn{Závěr}
-Text závěru
+
+Cílem této práce bylo popsat technologii pro šifrování disku BitLocker, její současnou podporu v~linuxových systémech a tuto podporu případně rozšířit. Teoretická část nabízí stručný popis BitLockeru, kdy jsou s~pomocí existujících zdrojů a vlastního testování popsány použité kryptografické funkce --- AES-CBC a AES-XTS použité pro šifrování dat uložených na disku a AES-CCM pro ochranu v~metadatech uložených klíčů. Popsán je také diskový formát BitLockeru --- hlavička a metadatové oblasti BitLocker zařízení a jejich obsah, včetně dvou druhů v~metadatech uložených klíčů --- FVEK použitého pro šifrování uložených dat, který je sám uložen v~metadatech chráněný pomocí druhé klíče VMK.
+
+Samostatná kapitola je vyhrazena existujícím nástrojům pro práci s~BitLockerem v~linuxovém prostředí. Bohužel ani knihovna libbde, ani nástroj dislocker nejsou zcela vyhovujícím řešením, především z~pohledu zvolených technologií, na kterých staví a špatným možnostem dalšího případného rozšíření.
+
+Pro podporu BitLockeru v~linuxovém prostředí byla v~rámci praktické části zvolena kombinace použití existujících technologií pro práci se šifrovanými zařízeními a nově vytvořeného nástroje pro práci s~BitLocker metadaty. O~samotné (de)šifrování dat při jejich čtení a zápisu se stará jaderný ovladač Device Mapper, který je použit i pro nativní linuxové řešení šifrování disku LUKS/dm-crypt. Ten již nyní podporuje všechny nezbytné kryptografické funkce pro nejnovější verzi BitLockeru. Nově vytvořený nástroj bitlockersetup slouží pouze k~získání FVEK klíče z~BitLocker metadat a také k~výpočtu umístění jednotlivých datových oblastí na šifrovaném zařízení. Pomocí těchto informací a pomocí Device Mapperu pak vytváří nové zařízení pro přístup k~šifrovaným datům. Pro dosažení uživatelské přívětivosti tohoto řešení byl upraven systémový démon \mbox{UDisks} tak, aby dokázal odemknout a prezentovat BitLocker zařízení stejně jako nativní LUKS/dm-crypt zařízení. Díky tomu je zaručena podpora BitLocker zařízení ve všech hlavních grafických prostředí, která UDisks používají pro práci s~blokovými zařízeními. Díky tomu systém automaticky rozpozná například připojený USB flash disk šifrovaný pomocí BitLockeru a uživateli pro jeho použití stačí jen zadat heslo stejně, jako by se jednalo o~disk šifrovaný pomocí LUKS/dm-crypt.
+
+\subsection*{Možnosti budoucího rozšíření}
+
+Pro případné budoucí rozšíření této práce se nabízí rozšíření podpory dalších verzí BitLockeru. Současná implementace podporuje pouze nejnovější variantu využívající k~šifrování dat algoritmus AES-XTS. Rozšíření o~podporu pro algoritmy AES-CBC a AES-CBC s~Elephant difuzérem by umožnilo podporovat i zařízení vytvořená na starších verzích operačního systému Microsoft Windows. Další vhodné rozšíření by představovalo úpravu přepsání vytvořeného nástroje tak, aby mohl být začleněn do projektu cryptsetup, který slouží pro práci se zařízeními šifrovanými pomocí technologií LUKS/dm-crypt a TrueCrypt/VeraCrypt v~linuxových systémech. Tím by se výrazně zjednodušilo a urychlilo rozšíření podpory BitLockeru do různých linuxových distribucí.
 
 
 % ============================================================================ %
