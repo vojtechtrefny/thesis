@@ -33,6 +33,7 @@ class Modes(Enum):
     IMAGE = 3
     DUMP = 4
     UUID = 5
+    ISBITLOCKER = 6
 
 
 def open(device, debug, password, mode, name):
@@ -65,7 +66,7 @@ def main(args):
         return False
 
     # these modes need an existing block devices
-    if args.mode in (Modes.OPEN, Modes.IMAGE, Modes.DUMP, Modes.UUID) and \
+    if args.mode in (Modes.OPEN, Modes.IMAGE, Modes.DUMP, Modes.UUID, Modes.ISBITLOCKER) and \
        not os.path.exists(args.device):
         print("Device '%s' doesn't exist." % args.device, file=sys.stderr)
         return False
@@ -105,6 +106,13 @@ def main(args):
         fve = _parse_metadata(args.device)
         print(fve.guid)
 
+    # isbitlocker
+    if args.mode == Modes.ISBITLOCKER:
+        try:
+            _parse_metadata(args.device)
+        except errors.HeaderException:
+            return False
+
     return True
 
 
@@ -141,6 +149,11 @@ if __name__ == '__main__':
     parser_uuid = subparsers.add_parser("uuid", help="Print UUID (GUID) of a BitLocker device")
     parser_uuid.add_argument("device", help="device to print UUID for")
     parser_uuid.set_defaults(mode=Modes.UUID)
+
+    # subparser for the 'isbitlocker' command
+    parser_is = subparsers.add_parser("isbitlocker", help="Check if selected device is a BitLocker device")
+    parser_is.add_argument("device", help="device to check")
+    parser_is.set_defaults(mode=Modes.ISBITLOCKER)
 
     args = argparser.parse_args()
 

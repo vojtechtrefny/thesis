@@ -15,6 +15,8 @@
 # copies or substantial portions of the Software.
 
 from . import constants, utils
+from .errors import HeaderException
+
 
 class BitLockerHeader():
     """Object representing BitLocker device header (first 512 B)"""
@@ -27,7 +29,7 @@ class BitLockerHeader():
 
         self.signature = self.raw_data[3:11]
         if self.signature != constants.BD_SIGNATURE:
-            raise RuntimeError("Unsupported/unknow device.")
+            raise HeaderException("Unsupported/unknow device.")
 
         self.guid = utils.le_decode_uuid(self.raw_data[160:176])
 
