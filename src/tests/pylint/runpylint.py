@@ -2,14 +2,14 @@
 
 import sys
 
-from pocketlint import PocketLintConfig, PocketLinter
+from pocketlint import PocketLintConfig, PocketLinter, FalsePositive
 
 
 class BitLockerSetupLintConfig(PocketLintConfig):
     def __init__(self):
         PocketLintConfig.__init__(self)
 
-        self.falsePositives = []
+        self.falsePositives = [FalsePositive(r"Redefining built-in 'copyright'")]
 
     @property
     def pylintPlugins(self):

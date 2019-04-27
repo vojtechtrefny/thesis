@@ -19,7 +19,12 @@ from .errors import HeaderException
 
 
 class BitLockerHeader():
-    """Object representing BitLocker device header (first 512 B)"""
+    """
+    Object representing BitLocker device header (first 512 B)
+
+    :param device: full path of the BitLocker device
+    :type device: string
+    """
 
     def __init__(self, device):
         self.device = device
@@ -46,6 +51,10 @@ class BitLockerHeader():
         return s
 
     def debug_print(self):
+        """
+        Prints all information in this header for debugging purposes
+        """
+
         for item in constants.BDE_HEADER:
             item_data = self.raw_data[item[0]:(item[0] + item[1])]
 

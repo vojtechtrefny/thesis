@@ -54,6 +54,19 @@ def _read_and_decrypt_data(device, start, count, key, iv_offset):
 
 
 def decrypt_and_save_image(fve, debug, device, fvek_open_key, res_file):
+    """
+    Decrypt entire seleted device and save the data as a raw image
+
+    :param fve: parsed FVE header
+    :type fve: :func:`~bitlockersetup.fve.FVE`
+    :param device: device path of an existing BitLocker device
+    :type device: string
+    :param fvek_open_key: decrypted FVEK
+    :type fvek_open_key: string
+    :res_file: name for the file to save the data to
+    :res_file: string
+    """
+
     # first data block
     first_block = fve.volume_header_block
     data_block = utils.read_from_device(device,

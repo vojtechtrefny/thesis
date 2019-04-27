@@ -19,7 +19,12 @@ from .keys import VMK, FVEK, AESEncryptedKey
 
 
 class MetadataEntry():
-    """Object representing BitLocker metadata entry"""
+    """
+    Object representing BitLocker metadata entry
+
+    :param raw_data: raw data to parse
+    :type raw_data: bytes
+    """
 
     def __init__(self, raw_data):
         self.raw_data = raw_data
@@ -63,6 +68,10 @@ class MetadataEntry():
                                                                     constants.FVE_VALUE_TYPES[self.value])
 
     def debug_print(self):
+        """
+        Prints all information in this header for debugging purposes
+        """
+
         s = "Metadata entry:\n"
         s += "\tType: %s\n" % constants.FVE_ENTRY_TYPES[self.type]
         s += "\tValue: %s\n" % constants.FVE_VALUE_TYPES[self.value]
@@ -71,6 +80,13 @@ class MetadataEntry():
 
     @property
     def vmk(self):
+        """
+        VMK found in this metadata (result is valid only if this is a VMK entry
+        (see :func:`~bitlockersetup.entry.MetadataEntry.is_vmk`)
+
+        :rtype: :func:`~bitlockersetup.keys.VMK`
+        """
+
         if not self.is_vmk:
             return None
 
@@ -81,6 +97,13 @@ class MetadataEntry():
 
     @property
     def fvek(self):
+        """
+        FVEK found in this metadata (result is valid only if this is a FVEK entry
+        (see :func:`~bitlockersetup.entry.MetadataEntry.is_fvek`)
+
+        :rtype: :func:`~bitlockersetup.keys.VMK`
+        """
+
         if not self.is_fvek:
             return None
 
@@ -91,6 +114,13 @@ class MetadataEntry():
 
     @property
     def aes_key(self):
+        """
+        Encrypted key found in this metadata (result is valid only if this is an
+        encrypted key entry (see :func:`~bitlockersetup.entry.MetadataEntry.is_aes_key`)
+
+        :rtype: :func:`~bitlockersetup.keys.AESEncryptedKey`
+        """
+
         if not self.is_aes_key:
             return None
 
@@ -101,6 +131,12 @@ class MetadataEntry():
 
     @property
     def description(self):
+        """
+        Description found in this metadata (result is valid only if this is a
+        description (see :func:`~bitlockersetup.entry.MetadataEntry.is_description`)
+
+        :rtype: string
+        """
         if not self.is_description:
             return None
 

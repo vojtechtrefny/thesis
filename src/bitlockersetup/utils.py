@@ -28,38 +28,101 @@ HUNDREDS_OF_NANOSECONDS = 10000000
 
 # decode functions
 def le_decode_uint64(data):
+    """
+    Decode 64bit unsigned integer saved in the Little Endian format
+
+    :param data: raw data read from the disk
+    :type data: bytes
+    :rtype: int
+    """
     return struct.unpack("<Q", data)[0]
 
 
 def le_decode_uint32(data):
+    """
+    Decode 324bit unsigned integer saved in the Little Endian format
+
+    :param data: raw data read from the disk
+    :type data: bytes
+    :rtype: int
+    """
     return struct.unpack("<L", data)[0]
 
 
 def le_decode_uint16(data):
+    """
+    Decode 16bit unsigned integer saved in the Little Endian format
+
+    :param data: raw data read from the disk
+    :type data: bytes
+    :rtype: int
+    """
     return struct.unpack("<I", data)[0]
 
 
 def le_decode_uint8(data):
+    """
+    Decode 8bit unsigned integer saved in the Little Endian format
+
+    :param data: raw data read from the disk
+    :type data: bytes
+    :rtype: int
+    """
     return struct.unpack("<H", data)[0]
 
 
 def le_decode_uuid(data):
+    """
+    Decode UUID saved in the Little Endian format
+
+    :param data: raw data read from the disk
+    :type data: bytes
+    :rtype: string
+    """
     return str(uuid.UUID(bytes_le=data))
 
 
 def filetime_to_unixtime(ft):
+    """
+    Convert Microsoft FILETIME format to UNIXTIME
+
+    :param ft: filetime
+    :type ft: int
+    :rtype: int
+    """
     return (ft - EPOCH_AS_FILETIME) / HUNDREDS_OF_NANOSECONDS
 
 
 def bytes_as_hex(data):
+    """
+    Parse bytes as a hexademical value for printing or debugging purposes
+
+    :param data: raw data read from the disk
+    :type data: bytes
+    :rtype: string
+    """
     return " ".join('{:02x}'.format(x) for x in data)
 
 
 def bytes_decode(data):
+    """
+    Parse bytes as a UTF-8 string, ignoring unsupported characters
+
+    :param data: raw data read from the disk
+    :type data: bytes
+    :rtype: string
+    """
     return "'%s'" % data.decode("utf-8", errors="ignore")
 
 
 def bytes_as_hex_dmsetup(data):
+    """
+    Parse bytes as a hexademical value for dmsetup
+
+    :param data: raw data read from the disk
+    :type data: bytes
+    :rtype: string
+    """
     return "".join('{:02x}'.format(x) for x in data)
 
 
@@ -81,6 +144,12 @@ def _decode_and_replace(data):
 
 
 def pprint_bytes(data):
+    """
+    Print bytes in a hexdump-like format
+
+    :param data: raw data read from the disk
+    :type data: bytes
+    """
     chunks = [data[x:x + 16] for x in range(0, len(data), 16)]
     for i, chunk in enumerate(chunks):
         index = '{:08x}'.format(i * 16)
@@ -97,6 +166,17 @@ def pprint_bytes(data):
 
 
 def print_header(data, header_type):
+    """
+    Helper function for printing a metadata header
+
+    :param data: raw data read from the disk
+    :type data: bytes
+    :param header_type: type of the header
+    :type header_type: :func:`~bitlockersetup.constants.BDE_HEADER` or
+                       :func:`~bitlockersetup.constants.FVE_METADATA_BLOCK_HEADER` or
+                       :func:`~bitlockersetup.constants.FVE_METADATA_HEADER` or
+                       :func:`~bitlockersetup.constants.FVE_METADATA_ENTRY`
+    """
     for item in header_type:
         item_data = data[item[0]:(item[0] + item[1])]
 
@@ -105,6 +185,18 @@ def print_header(data, header_type):
 
 # misc
 def read_from_device(path, start, count):
+    """
+    Read data from a device
+
+    :param path: device path
+    :type data: string
+    :param start: starting offset for reading
+    :type start: int
+    :param count: lenght of data to read
+    :type count: int
+    :rtype: bytes
+    """
+
     with open(path, "rb") as f:
         f.seek(start)
         data = f.read(count)
@@ -113,6 +205,14 @@ def read_from_device(path, start, count):
 
 
 def run_command(command):
+    """
+    Run a command in shell
+
+    :param command: shell command
+    :type command: string
+    :returns: return code and output (including error output)
+    :rtype: tuple of int and string
+    """
     res = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE)
 
@@ -126,12 +226,33 @@ def run_command(command):
 
 # passphrase
 def sha256(data):
+    """
+    Calculate SHA256 hash
+
+    :param data: data to hash
+    :type data: bytes
+    :rtype: string
+    """
     m = hashlib.sha256()
     m.update(data)
     return m.digest()
 
 
 def get_key_from_password(password, salt):
+    """
+    Derivate key from a password. Uses BitLocker custom KDF.
+
+    .. note:: This function runs SHA256 1048576 times in a loop so this can
+              take some time on slower PCs.
+
+    :param password: password from user input
+    :type password: string
+    :param salt: salt from VMK protected using this password
+    :type salt: bytes
+    :returns: derived key
+    :rtype: bytes
+    """
+
     # initial values
     last_sha256 = b"\x00" * 32
     initial_sha256 = b"\x00" * 32

@@ -18,6 +18,12 @@ from . import constants, utils, errors
 
 
 def get_dm_devices():
+    """
+    Get list of DM devices
+
+    :rtype: list of strings
+    """
+
     ret, out = utils.run_command("dmsetup ls")
     if ret != 0:
         raise errors.DMDeviceException("Failed to gather information about Device Mapper devices: %s" % out)
@@ -26,12 +32,32 @@ def get_dm_devices():
 
 
 def close_device(device):
+    """
+    Close an existing DM device
+
+    :param device: name of a DM device
+    :type device: string
+    """
+
     ret, out = utils.run_command("dmsetup remove %s" % device)
     if ret != 0:
         raise errors.DMDeviceException(out)
 
 
 def create_dm_device(fve, device, fvek_open_key, mapper_name):
+    """
+    Create a new DM device for BitLocker
+
+    :param fve: parsed FVE header
+    :type fve: :func:`~bitlockersetup.fve.FVE`
+    :param device: underlying device path
+    :type device: string
+    :param fvek_open_key: decrypted FVEK
+    :type fvek_open_key: string
+    :mapper_name: name for the mapped device
+    :type mapper_name: string
+    """
+
     first_block = fve.volume_header_block
 
     crypt_template = "{start} {size} crypt aes-xts-plain64 {key} {iv_offset} {device} {offset}"

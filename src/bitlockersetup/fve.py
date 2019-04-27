@@ -25,7 +25,14 @@ from Cryptodome.Cipher import AES
 
 
 class FVE():
-    """Object representing BitLocker FVE headers"""
+    """
+    Object representing BitLocker FVE headers
+
+    :param device: full path of the BitLocker device
+    :type device: string
+    :param bde_header: BitLocker header
+    :type bde_header: :func:`~bitlockersetup.header.BitLockerHeader`
+    """
 
     def __init__(self, device, bde_header):
 
@@ -107,6 +114,10 @@ class FVE():
             start += metadata_entry_len
 
     def debug_print(self):
+        """
+        Prints all information in this header for debugging purposes
+        """
+
         print("==== FVE metadata block header ====")
         utils.print_header(self.block_header, constants.FVE_METADATA_BLOCK_HEADER)
 
@@ -129,6 +140,11 @@ class FVE():
 
     @property
     def block_header(self):
+        """
+        FVE block header
+
+        :rtype: bytes
+        """
         if not self._metadata_block_headers:
             self._parse()
 
@@ -136,6 +152,11 @@ class FVE():
 
     @property
     def header(self):
+        """
+        FVE header
+
+        :rtype: bytes
+        """
         if not self._metadata_headers:
             self._parse()
 
@@ -143,6 +164,11 @@ class FVE():
 
     @property
     def guid(self):
+        """
+        GUID of the device
+
+        :rtype: string
+        """
         if not self._guid:
             self._guid = utils.le_decode_uuid(self.header[16:32])
 
@@ -150,6 +176,11 @@ class FVE():
 
     @property
     def vmks(self):
+        """
+        List of Volume Master Keys found in this FVE metadata
+
+        :rtype: list of :func:`~bitlockersetup.keys.VMK`
+        """
         vmks = []
 
         for entry in self._entries:
@@ -163,6 +194,11 @@ class FVE():
 
     @property
     def fvek(self):
+        """
+        Encrypted Full Volume Encryption Key found in this FVE metadata
+
+        :rtype: :func:`~bitlockersetup.keys.FVEK`
+        """
         for entry in self._entries:
             if entry.is_fvek:
                 return entry.fvek
@@ -171,6 +207,11 @@ class FVE():
 
     @property
     def volume_header_block(self):
+        """
+        Metadata Entry containing Volume Header Block
+
+        :rtype: :func:`~bitlockersetup.entry.MetadataEntry`
+        """
         for entry in self._entries:
             if entry.is_volume_header:
                 return entry
@@ -178,6 +219,14 @@ class FVE():
         raise RuntimeError("No Volume header block entry found in this FVE header")
 
     def get_fvek_by_passphrase(self, password):
+        """
+        Extract decrypted FVEK using a password protected VMK
+
+        :param password: password
+        :type password: string
+
+        :rtype: :func:`~bitlockersetup.keys.UnecryptedKey`
+        """
         # get the VMK protected by password and calculate VMK key from it
         pw_vmk = next(v for v in self.vmks if v.is_password_protected)
         if pw_vmk is None:

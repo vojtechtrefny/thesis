@@ -20,7 +20,12 @@ from . import constants, utils
 
 
 class VMK():
-    """Object representing BitLocker VMK"""
+    """
+    Object representing BitLocker VMK
+
+    :param raw_data: raw data to parse
+    :type raw_data: bytes
+    """
 
     def __init__(self, raw_data):
         self.raw_data = raw_data
@@ -75,6 +80,11 @@ class VMK():
 
     @property
     def salt(self):
+        """
+        Salt string associated with this VMK
+
+        :rtype: bytes
+        """
         for entry in self._entries:
             if entry.is_stretch_key:
                 return entry.salt
@@ -83,6 +93,11 @@ class VMK():
 
     @property
     def aes_key(self):
+        """
+        An actuall key metadata "container" with this VMK
+
+        :rtype: :func:`~bitlockersetup.keys.AESEncryptedKey`
+        """
         for entry in self._entries:
             if entry.is_aes_key:
                 return entry.aes_key
@@ -91,7 +106,12 @@ class VMK():
 
 
 class AESEncryptedKey():
-    """Object representing AES encrypted key in a metadata entry"""
+    """
+    Object representing AES encrypted key in a metadata entry
+
+    :param raw_data: raw data to parse
+    :type raw_data: bytes
+    """
 
     def __init__(self, raw_data):
         self.raw_data = raw_data
@@ -115,7 +135,12 @@ class AESEncryptedKey():
 
 
 class FVEK(AESEncryptedKey):
-    """Object representing BitLocker FVEK"""
+    """
+    Object representing BitLocker FVEK
+
+    :param raw_data: raw data to parse
+    :type raw_data: bytes
+    """
 
     def __str__(self):
         s = "\033[1mFVEK\033[0m\n"
@@ -125,6 +150,13 @@ class FVEK(AESEncryptedKey):
 
 
 class UnecryptedKey():
+    """
+    Object representing a decrypted key (VMK or FVEK)
+
+    :param raw_data: raw data to parse
+    :type raw_data: bytes
+    """
+
     def __init__(self, raw_data):
         self.raw_data = raw_data
 

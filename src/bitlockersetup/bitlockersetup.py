@@ -27,6 +27,10 @@ from .errors import BitLockerSetupError
 
 
 class Modes(Enum):
+    """
+    bitlockersetup subcommands/modes of operation
+    """
+
     OPEN = 1
     CLOSE = 2
     IMAGE = 3
@@ -43,6 +47,12 @@ def _parse_metadata(device):
 
 
 def process_commands(args):
+    """
+    Runs command specified by the user
+
+    :returns: success of the operation
+    :rtype: bool
+    """
     # these modes need root access
     if args.mode in (Modes.OPEN, Modes.CLOSE) and os.getuid() != 0:
         raise BitLockerSetupError("Must be run as root open or close devices.")
@@ -114,6 +124,10 @@ def process_commands(args):
 
 
 def parse_args():
+    """
+    Argument parser for bitlockersetup commandline tool
+    """
+
     argparser = argparse.ArgumentParser()
     argparser.add_argument("-v", "--verbose", dest="verbose", help="enable debug messages",
                            action="store_true")
@@ -157,6 +171,10 @@ def parse_args():
 
 
 def main():
+    """
+    main function for bitlockersetup
+    """
+
     args = parse_args()
     try:
         process_commands(args)
