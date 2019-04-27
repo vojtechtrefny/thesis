@@ -31,13 +31,12 @@ class Modes(Enum):
     OPEN = 1
     CLOSE = 2
     IMAGE = 3
+    DUMP = 4
+    UUID = 5
 
 
 def open(device, debug, password, mode, name):
-    # read first 512 bytes and parse bitlocker header
-    header = BitLockerHeader(device)
-
-    fve = FVE(device, header)
+    fve = _parse_metadata(device)
     if debug:
         print(fve)
 
@@ -52,10 +51,23 @@ def open(device, debug, password, mode, name):
         dm.create_dm_device(fve, device, fvek_open_key, name)
 
 
+def _parse_metadata(device):
+    header = BitLockerHeader(device)
+    fve = FVE(device, header)
+
+    return fve
+
+
 def main(args):
-    # these modes needs root access
+    # these modes need root access
     if args.mode in (Modes.OPEN, Modes.CLOSE) and os.getuid() != 0:
         print("Must be run as root open or close devices.", file=sys.stderr)
+        return False
+
+    # these modes need an existing block devices
+    if args.mode in (Modes.OPEN, Modes.IMAGE, Modes.DUMP, Modes.UUID) and \
+       not os.path.exists(args.device):
+        print("Device '%s' doesn't exist." % args.device, file=sys.stderr)
         return False
 
     # close
@@ -73,10 +85,6 @@ def main(args):
 
     # open and image
     if args.mode in (Modes.OPEN, Modes.IMAGE):
-        if not os.path.exists(args.device):
-            print("Device '%s' doesn't exist." % args.device, file=sys.stderr)
-            return False
-
         if args.mode == Modes.IMAGE and os.path.exists("./" + args.filename):
             rewrite = input("File '%s' already exists. Replace [Y/n]? " % args.filename)
             if rewrite not in ("yes", "YES", "Yes", "y", "Y", ""):
@@ -86,6 +94,16 @@ def main(args):
 
         open(device=args.device, debug=args.verbose, password=password,
              mode=args.mode, name="bitlocker")  # FIXME
+
+    # dump
+    if args.mode == Modes.DUMP:
+        fve = _parse_metadata(args.device)
+        print(fve)
+
+    # uuid
+    if args.mode == Modes.UUID:
+        fve = _parse_metadata(args.device)
+        print(fve.guid)
 
     return True
 
@@ -113,6 +131,16 @@ if __name__ == '__main__':
     parser_image.add_argument("device", help="device to decrypt")
     parser_image.add_argument("filename", help="name for the decrypted image")
     parser_image.set_defaults(mode=Modes.IMAGE)
+
+    # subparser for the 'dump' command
+    parser_dump = subparsers.add_parser("dump", help="Print information about a BitLocker device")
+    parser_dump.add_argument("device", help="device to dump")
+    parser_dump.set_defaults(mode=Modes.DUMP)
+
+    # subparser for the 'uuid' command
+    parser_uuid = subparsers.add_parser("uuid", help="Print UUID (GUID) of a BitLocker device")
+    parser_uuid.add_argument("device", help="device to print UUID for")
+    parser_uuid.set_defaults(mode=Modes.UUID)
 
     args = argparser.parse_args()
 

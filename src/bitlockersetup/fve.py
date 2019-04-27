@@ -41,6 +41,8 @@ class FVE():
         self._metadata_size = 0
         self._device_size = 0
 
+        self._guid = None
+
         self._parse()
 
     def _parse(self):
@@ -113,12 +115,11 @@ class FVE():
 
     def __str__(self):
         encryption = constants.ENCRYPTION_METHODS[utils.le_decode_uint8(self.header[36:38])]
-        guid = utils.le_decode_uuid(self.header[16:32])
         win_time = utils.le_decode_uint64(self.header[40:48])
         created = datetime.utcfromtimestamp(utils.filetime_to_unixtime(win_time))
 
         s = "Encryption method:\t%s\n" % encryption
-        s += "Volume identifier:\t%s\n" % guid
+        s += "Volume identifier:\t%s\n" % self.guid
         s += "Creation time:\t\t%s\n" % created
 
         for entry in self._entries:
@@ -139,6 +140,13 @@ class FVE():
             self._parse()
 
         return self._metadata_headers[0]
+
+    @property
+    def guid(self):
+        if not self._guid:
+            self._guid = utils.le_decode_uuid(self.header[16:32])
+
+        return self._guid
 
     @property
     def vmks(self):
