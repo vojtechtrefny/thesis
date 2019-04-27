@@ -1,3 +1,19 @@
+# -*- coding: utf-8 -*-
+# utils.py
+# Various utils
+#
+# Copyright (c) 2019 Vojtech Trefny
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
 import hashlib
 import struct
 import subprocess
@@ -78,6 +94,13 @@ def pprint_bytes(data):
             decoded += " " * (16 - len(decoded))
 
         print("%s: %s %s |%s%s|" % (index, ashex[:23], ashex[23:], decoded[:8], decoded[8:]))
+
+
+def print_header(data, header_type):
+    for item in header_type:
+        item_data = data[item[0]:(item[0] + item[1])]
+
+        print("\033[1m%s:\033[0m %s %s" % (item[2], bytes_as_hex(item_data), bytes_decode(item_data)))
 
 
 # misc
