@@ -25,6 +25,7 @@ from bitlockersetup import constants, utils, dm, image, errors
 from bitlockersetup.fve import FVE
 from bitlockersetup.header import BitLockerHeader
 from bitlockersetup.keys import UnecryptedKey
+from bitlockersetup.errors import DMDeviceException, BitLockerSetupError
 
 
 class Modes(Enum):
@@ -46,14 +47,12 @@ def _parse_metadata(device):
 def main(args):
     # these modes need root access
     if args.mode in (Modes.OPEN, Modes.CLOSE) and os.getuid() != 0:
-        print("Must be run as root open or close devices.", file=sys.stderr)
-        return False
+        raise BitLockerSetupError("Must be run as root open or close devices.")
 
     # these modes need an existing block devices
     if args.mode in (Modes.OPEN, Modes.IMAGE, Modes.DUMP, Modes.UUID, Modes.ISBITLOCKER) and \
        not os.path.exists(args.device):
-        print("Device '%s' doesn't exist." % args.device, file=sys.stderr)
-        return False
+        raise BitLockerSetupError("Device '%s' doesn't exist." % args.device)
 
     # these modes need password
     if args.mode in (Modes.OPEN, Modes.IMAGE):
@@ -63,14 +62,12 @@ def main(args):
     if args.mode == Modes.CLOSE:
         dm_devices = dm.get_dm_devices()
         if args.device not in dm_devices:
-            print("Device '%s' doesn't appear to be an existing DM device." % args.device, file=sys.stderr)
-            return False
+            raise BitLockerSetupError("Device '%s' doesn't appear to be an existing DM device." % args.device)
 
         try:
             dm.close_device(args.device)
         except errors.DMDeviceException as e:
-            print("Failed to remove device '%s': %s" % (args.device, str(e)), file=sys.stderr)
-            return False
+            raise BitLockerSetupError("Failed to remove device '%s': %s" % (args.device, str(e)))
 
     # open
     if args.mode == Modes.OPEN:
@@ -113,7 +110,7 @@ def main(args):
         try:
             _parse_metadata(args.device)
         except errors.HeaderException:
-            return False
+            raise BitLockerSetupError("Device '%s' doesn't appear to be a supported BitLocker device" % args.device)
 
     return True
 
@@ -159,9 +156,10 @@ if __name__ == '__main__':
 
     args = argparser.parse_args()
 
-    success = main(args)
-
-    if success:
-        sys.exit(0)
-    else:
+    try:
+        main(args)
+    except BitLockerSetupError as e:
+        print(str(e), file=sys.stderr)
         sys.exit(1)
+    else:
+        sys.exit(0)

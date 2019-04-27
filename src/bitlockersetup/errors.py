@@ -14,13 +14,17 @@
 # copies or substantial portions of the Software.
 
 
-class DMDeviceException(Exception):
+class BitLockerSetupError(Exception):
     pass
 
 
-class FVEException(Exception):
+class DMDeviceException(BitLockerSetupError):
     pass
 
 
-class HeaderException(Exception):
+class FVEException(BitLockerSetupError):
+    pass
+
+
+class HeaderException(BitLockerSetupError):
     pass
