@@ -1,0 +1,2 @@
+include Makefile bitlockersetup.spec
+recursive-include tests *.py
