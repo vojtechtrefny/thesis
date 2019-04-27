@@ -14,7 +14,21 @@
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
 
-from . import constants, utils
+from . import constants, utils, errors
+
+
+def get_dm_devices():
+    ret, out = utils.run_command("dmsetup ls")
+    if ret != 0:
+        raise errors.DMDeviceException("Failed to gather information about Device Mapper devices: %s" % out)
+
+    return [line.split("\t")[0] for line in out.split("\n")]
+
+
+def close_device(device):
+    ret, out = utils.run_command("dmsetup remove %s" % device)
+    if ret != 0:
+        raise errors.DMDeviceException(out)
 
 
 def create_dm_device(fve, device, fvek_open_key, mapper_name):

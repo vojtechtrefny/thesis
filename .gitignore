@@ -21,3 +21,6 @@ data/
 *.toc
 *.vrb
 *.xmpi
+
+# testing/debug data
+*.raw
