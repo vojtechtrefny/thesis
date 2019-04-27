@@ -36,22 +36,6 @@ class Modes(Enum):
     ISBITLOCKER = 6
 
 
-def open(device, debug, password, mode, name):
-    fve = _parse_metadata(device)
-    if debug:
-        print(fve)
-
-    fvek_open_key = fve.get_fvek_by_passphrase(password)
-
-    if debug:
-        print(fvek_open_key)
-
-    if mode == Modes.IMAGE:
-        image.decrypt_and_save_image(fve, debug, device, fvek_open_key, os.path.realpath(name))
-    elif mode == Modes.OPEN:
-        dm.create_dm_device(fve, device, fvek_open_key, name)
-
-
 def _parse_metadata(device):
     header = BitLockerHeader(device)
     fve = FVE(device, header)
@@ -71,6 +55,10 @@ def main(args):
         print("Device '%s' doesn't exist." % args.device, file=sys.stderr)
         return False
 
+    # these modes need password
+    if args.mode in (Modes.OPEN, Modes.IMAGE):
+        password = getpass.getpass(prompt="Password for '%s': " % args.device)
+
     # close
     if args.mode == Modes.CLOSE:
         dm_devices = dm.get_dm_devices()
@@ -84,17 +72,31 @@ def main(args):
             print("Failed to remove device '%s': %s" % (args.device, str(e)), file=sys.stderr)
             return False
 
-    # open and image
-    if args.mode in (Modes.OPEN, Modes.IMAGE):
-        if args.mode == Modes.IMAGE and os.path.exists("./" + args.filename):
+    # open
+    if args.mode == Modes.OPEN:
+        fve = _parse_metadata(args.device)
+
+        if not args.name:
+            name = "bitlocker-" + fve.guid
+        else:
+            name = args.name
+
+        dm.create_dm_device(fve, args.device,
+                            fve.get_fvek_by_passphrase(password), name)
+
+    # image
+    if args.mode == Modes.IMAGE:
+        if os.path.exists("./" + args.filename):
             rewrite = input("File '%s' already exists. Replace [Y/n]? " % args.filename)
             if rewrite not in ("yes", "YES", "Yes", "y", "Y", ""):
                 return True
 
-        password = getpass.getpass(prompt="Password for '%s': " % args.device)
-
-        open(device=args.device, debug=args.verbose, password=password,
-             mode=args.mode, name="bitlocker")  # FIXME
+        fve = _parse_metadata(args.device)
+        image.decrypt_and_save_image(fve,
+                                     args.verbose,
+                                     args.device,
+                                     fve.get_fvek_by_passphrase(password),
+                                     os.path.realpath(args.filename))
 
     # dump
     if args.mode == Modes.DUMP:
