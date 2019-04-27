@@ -83,7 +83,7 @@ def main(args):
 
     # image
     if args.mode == Modes.IMAGE:
-        if os.path.exists("./" + args.filename):
+        if os.path.exists("./" + args.filename) and not args.yes:
             rewrite = input("File '%s' already exists. Replace [Y/n]? " % args.filename)
             if rewrite not in ("yes", "YES", "Yes", "y", "Y", ""):
                 return True
@@ -119,6 +119,8 @@ if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument("-v", "--verbose", dest="verbose", help="enable debug messages",
+                           action="store_true")
+    argparser.add_argument("-y", "--yes", dest="yes", help="assume 'yes' for all questions",
                            action="store_true")
     subparsers = argparser.add_subparsers(help='sub-command help')
 
