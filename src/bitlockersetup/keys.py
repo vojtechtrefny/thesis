@@ -28,7 +28,6 @@ class VMK():
         self.header = raw_data[0:28]
         self.data = raw_data[28:]
 
-
         self.identifier = utils.le_decode_uuid(self.header[0:16])
         self.protection = utils.le_decode_uint8(self.header[26:28])
 

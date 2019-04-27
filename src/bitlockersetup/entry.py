@@ -17,6 +17,7 @@
 from . import constants, utils
 from .keys import VMK, FVEK, AESEncryptedKey
 
+
 class MetadataEntry():
     """Object representing BitLocker metadata entry"""
 

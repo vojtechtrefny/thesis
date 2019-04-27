@@ -19,13 +19,11 @@ import os
 import sys
 
 from enum import Enum
-from distutils.util import strtobool
 
-from . import constants, utils, dm, image, errors
+from . import dm, image, errors
 from .fve import FVE
 from .header import BitLockerHeader
-from .keys import UnecryptedKey
-from .errors import DMDeviceException, BitLockerSetupError
+from .errors import BitLockerSetupError
 
 
 class Modes(Enum):
@@ -156,6 +154,7 @@ def parse_args():
     parser_is.set_defaults(mode=Modes.ISBITLOCKER)
 
     return argparser.parse_args()
+
 
 def main():
     args = parse_args()

@@ -130,6 +130,7 @@ def sha256(data):
     m.update(data)
     return m.digest()
 
+
 def get_key_from_password(password, salt):
     # initial values
     last_sha256 = b"\x00" * 32

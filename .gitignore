@@ -28,3 +28,7 @@ bitlockersetup.egg-info
 
 # testing/debug data
 *.raw
+
+# pylint
+src/pylint-log
+src/tests/pylint/.pylint.d
