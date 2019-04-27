@@ -18,6 +18,10 @@ from datetime import datetime
 
 from . import constants, utils
 from .entry import MetadataEntry
+from .errors import FVEException
+from .keys import UnecryptedKey
+
+from Cryptodome.Cipher import AES
 
 
 class FVE():
@@ -164,3 +168,28 @@ class FVE():
                 return entry
 
         raise RuntimeError("No Volume header block entry found in this FVE header")
+
+    def get_fvek_by_passphrase(self, password):
+        # get the VMK protected by password and calculate VMK key from it
+        pw_vmk = next(v for v in self.vmks if v.is_password_protected)
+        if pw_vmk is None:
+            raise FVEException("No password protected VMKs found.")
+
+        pw_vmk_key = utils.get_key_from_password(password, pw_vmk.salt)
+
+        # decrypt the VMK
+        suite = AES.new(pw_vmk_key, AES.MODE_CCM, pw_vmk.aes_key.raw_nonce)
+
+        try:
+            decrypted_data = suite.decrypt_and_verify(pw_vmk.aes_key.key,
+                                                      received_mac_tag=pw_vmk.aes_key.mac_tag)
+            vmk_open_key = UnecryptedKey(decrypted_data)
+        except ValueError as e:
+            raise FVEException("Failed to decrypt password protected VMK: %s" % str(e)) from e
+
+        # and use it to decrypt the FVEK
+        suite = AES.new(vmk_open_key.key, AES.MODE_CCM, self.fvek.raw_nonce)
+        decrypted_data = suite.decrypt_and_verify(self.fvek.key,
+                                                  received_mac_tag=self.fvek.mac_tag)
+
+        return UnecryptedKey(decrypted_data)

@@ -21,8 +21,6 @@ import sys
 from enum import Enum
 from distutils.util import strtobool
 
-from Cryptodome.Cipher import AES
-
 from bitlockersetup import constants, utils, dm, image, errors
 from bitlockersetup.fve import FVE
 from bitlockersetup.header import BitLockerHeader
@@ -43,23 +41,7 @@ def open(device, debug, password, mode, name):
     if debug:
         print(fve)
 
-    vmks = fve.vmks
-    fvek = fve.fvek
-
-    # get the VMK protected by password and calculate VMK key from it
-    pw_vmk = next(v for v in vmks if v.is_password_protected)
-    pw_vmk_key = utils.get_key_from_password(password, pw_vmk.salt)
-
-    # decrypt the VMK
-    encryption_suite = AES.new(pw_vmk_key, AES.MODE_CCM, pw_vmk.aes_key.raw_nonce)
-    decrypted_data = encryption_suite.decrypt_and_verify(pw_vmk.aes_key.key, received_mac_tag=pw_vmk.aes_key.mac_tag)
-    vmk_open_key1 = UnecryptedKey(decrypted_data)
-
-    # and use it to decrypt the FVEK
-    encryption_suite = AES.new(vmk_open_key1.key, AES.MODE_CCM, fvek.raw_nonce)
-    decrypted_data = encryption_suite.decrypt_and_verify(fvek.key, received_mac_tag=fvek.mac_tag)
-
-    fvek_open_key = UnecryptedKey(decrypted_data)
+    fvek_open_key = fve.get_fvek_by_passphrase(password)
 
     if debug:
         print(fvek_open_key)

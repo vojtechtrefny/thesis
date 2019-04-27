@@ -16,3 +16,7 @@
 
 class DMDeviceException(Exception):
     pass
+
+
+class FVEException(Exception):
+    pass
