@@ -5,6 +5,10 @@ __pycache__/
 backups/
 data/
 
+build/
+dist/
+bitlockersetup.egg-info
+
 # latex
 *.aux
 *.bbl

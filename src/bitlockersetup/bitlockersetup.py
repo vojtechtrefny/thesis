@@ -21,11 +21,11 @@ import sys
 from enum import Enum
 from distutils.util import strtobool
 
-from bitlockersetup import constants, utils, dm, image, errors
-from bitlockersetup.fve import FVE
-from bitlockersetup.header import BitLockerHeader
-from bitlockersetup.keys import UnecryptedKey
-from bitlockersetup.errors import DMDeviceException, BitLockerSetupError
+from . import constants, utils, dm, image, errors
+from .fve import FVE
+from .header import BitLockerHeader
+from .keys import UnecryptedKey
+from .errors import DMDeviceException, BitLockerSetupError
 
 
 class Modes(Enum):
@@ -44,7 +44,7 @@ def _parse_metadata(device):
     return fve
 
 
-def main(args):
+def process_commands(args):
     # these modes need root access
     if args.mode in (Modes.OPEN, Modes.CLOSE) and os.getuid() != 0:
         raise BitLockerSetupError("Must be run as root open or close devices.")
@@ -115,8 +115,7 @@ def main(args):
     return True
 
 
-if __name__ == '__main__':
-
+def parse_args():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("-v", "--verbose", dest="verbose", help="enable debug messages",
                            action="store_true")
@@ -156,12 +155,18 @@ if __name__ == '__main__':
     parser_is.add_argument("device", help="device to check")
     parser_is.set_defaults(mode=Modes.ISBITLOCKER)
 
-    args = argparser.parse_args()
+    return argparser.parse_args()
 
+def main():
+    args = parse_args()
     try:
-        main(args)
+        process_commands(args)
     except BitLockerSetupError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
     else:
         sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
