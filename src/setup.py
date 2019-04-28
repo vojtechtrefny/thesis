@@ -35,5 +35,6 @@ setup(name="bitlockersetup",
       python_requires=">=3.5",
       install_requires=["pycryptodomex", "cryptography"],
       extras_require={"test": ["pocketlint"]},
-      entry_points={"console_scripts": ["bitlockersetup=bitlockersetup.bitlockersetup:main"]}
+      entry_points={"console_scripts": ["bitlockersetup=bitlockersetup.bitlockersetup:main"]},
+      data_files=[("/usr/share/man/man8", ["man/bitlockersetup.8"])]
 )

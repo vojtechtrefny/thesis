@@ -1,0 +1,55 @@
+.TH BITLOCKERSETUP "8" "April 2019" "bitlockersetup 0.1" "Maintenance Commands"
+.SH NAME
+bitlockersetup \- manage BitLocker encrypted devices
+.SH SYNOPSIS
+.B
+bitlockersetup <options> <action> <action args>
+.SH DESCRIPTION
+Bitlockersetup is a tool for accessing BitLocker devices in GNU/Linux using the Device Mapper crypto target.
+Currently only basic operations like open and close are being supported.
+
+Only password protected BitLocker devices that use AES-XTS enryption can be opened. Older BitLocker versions that use AES-CBC and other protectors like TPM are not supported.
+
+.SH COMMANDS
+.TP
+open DEVICE [NAME]
+Open an existing BitLocker device using dm-crypt. The name argument is optional, if not specified, the created DM devices will be named as "bitlocker-UUID".
+Password can also be provided on standard input if used together with the \fB\-q\fR, \fB\-\-quiet\fR option.
+
+The newly created Device Mapper device /dev/mapper/<NAME> contains a standard NTFS filesystem that can be mounted using ntfs-3g.
+
+.TP
+close NAME
+Closes an opened BitLocker device. This removes the existing DM mapping NAME.
+.TP
+image DEVICE FILENAME
+Decrypts a BitLocker device and saves it as an image to FILENAME.
+.TP
+dump DEVICE
+Prints the header information about an existing BitLocker device.
+.TP
+uuid DEVICE
+Prints the UUID (GUID) of an existing BitLocker device.
+.TP
+isbitlocker DEVICE
+Checks if the selected device is a BitLocker device. Returns true, if DEVICE is a BitLocker device, false otherwise.
+.SH COMMON OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Show help text and default parameters.
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Print more information on command execution.
+.TP
+\fB\-y\fR, \fB\-\-yes\fR
+Do not prompt for confirmation interactively but always assume the answer is yes.
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR
+Suppress output and log messages. Overrides --verbose.
+.TP
+\fB\-\-version\fR
+Show bitlockersetup version.
+.SH AUTHOR
+Vojtech Trefny <mail@vojtechtrefny.cz>
+.SH SEE ALSO
+dmsetup(8), ntfsprogs(8)

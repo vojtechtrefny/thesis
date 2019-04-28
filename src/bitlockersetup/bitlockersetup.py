@@ -26,6 +26,9 @@ from .header import BitLockerHeader
 from .errors import BitLockerSetupError
 
 
+VERSION = "0.1"
+
+
 class Modes(Enum):
     """
     bitlockersetup subcommands/modes of operation
@@ -53,6 +56,12 @@ def process_commands(args):
     :returns: success of the operation
     :rtype: bool
     """
+
+    # deal with version first
+    if args.version:
+        print("bitlockersetup %s" % VERSION)
+        return True
+
     # these modes need root access
     if args.mode in (Modes.OPEN, Modes.CLOSE) and os.getuid() != 0:
         raise BitLockerSetupError("Must be run as root open or close devices.")
@@ -145,6 +154,8 @@ def parse_args():
     argparser.add_argument("-q", "--quiet", dest="quiet",
                            help="do not print questions on standard output",
                            action="store_true")
+    argparser.add_argument("--version", dest="version",
+                           help="print version of bitlockersetup", action="store_true")
     subparsers = argparser.add_subparsers(help='sub-command help')
 
     # subparser for the 'open' command

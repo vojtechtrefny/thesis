@@ -36,6 +36,7 @@ make check
 
 %files
 %{_bindir}/bitlockersetup
+%{_mandir}/man8/bitlockersetup.8*
 %{python3_sitelib}/%{srcname}*egg*
 %{python3_sitelib}/%{srcname}/
 
