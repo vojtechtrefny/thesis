@@ -64,7 +64,11 @@ def process_commands(args):
 
     # these modes need password
     if args.mode in (Modes.OPEN, Modes.IMAGE):
-        password = getpass.getpass(prompt="Password for '%s': " % args.device)
+        if args.quiet:
+            # quiet mode, read password from stdin
+            password = args.input.read()
+        else:
+            password = getpass.getpass(prompt="Password for '%s': " % args.device)
 
     # close
     if args.mode == Modes.CLOSE:
@@ -133,12 +137,17 @@ def parse_args():
                            action="store_true")
     argparser.add_argument("-y", "--yes", dest="yes", help="assume 'yes' for all questions",
                            action="store_true")
+    argparser.add_argument("-q", "--quiet", dest="quiet",
+                           help="do not print questions on standard output",
+                           action="store_true")
     subparsers = argparser.add_subparsers(help='sub-command help')
 
     # subparser for the 'open' command
     parser_open = subparsers.add_parser("open", help="Open a BitLocker device")
     parser_open.add_argument("device", help="device to open")
     parser_open.add_argument("name", help="name for the open device (optional)", nargs="?", default=None)
+    parser_open.add_argument("input", nargs='?', type=argparse.FileType("r"),
+                             default=sys.stdin, help=argparse.SUPPRESS)
     parser_open.set_defaults(mode=Modes.OPEN)
 
     # subparser for the 'close' command
@@ -150,6 +159,8 @@ def parse_args():
     parser_image = subparsers.add_parser("image", help="Decrypt a BitLocker device and save it as an image")
     parser_image.add_argument("device", help="device to decrypt")
     parser_image.add_argument("filename", help="name for the decrypted image")
+    parser_open.add_argument("input", nargs='?', type=argparse.FileType("r"),
+                             default=sys.stdin, help=argparse.SUPPRESS)
     parser_image.set_defaults(mode=Modes.IMAGE)
 
     # subparser for the 'dump' command
