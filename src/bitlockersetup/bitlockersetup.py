@@ -72,12 +72,17 @@ def process_commands(args):
 
     # close
     if args.mode == Modes.CLOSE:
+        if args.device.startswith("/dev/mapper/"):
+            device = args.device[12:]
+        else:
+            device = args.device
+
         dm_devices = dm.get_dm_devices()
-        if args.device not in dm_devices:
+        if device not in dm_devices:
             raise BitLockerSetupError("Device '%s' doesn't appear to be an existing DM device." % args.device)
 
         try:
-            dm.close_device(args.device)
+            dm.close_device(device)
         except errors.DMDeviceException as e:
             raise BitLockerSetupError("Failed to remove device '%s': %s" % (args.device, str(e)))
 
