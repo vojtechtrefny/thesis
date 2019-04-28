@@ -9,6 +9,87 @@ Obsah přílohy
 
 \priloha{Manuálová stránka bitlockersetup}\label{attachment:manpage}
 
+
+\begin{lstlisting}[frame=none, escapechar=$, columns=fullflexible, keepspaces=true, basicstyle=\ttfamily\small]
+$\vspace{1em}$
+$\pmb{NAME}$
+$\vspace{2.5pt}$
+       bitlockersetup - manage BitLocker encrypted devices
+$\vspace{0.8em}$
+$\pmb{SYNOPSIS}$
+$\vspace{2.5pt}$
+       bitlockersetup <options> <action> <action args>
+$\vspace{0.8em}$
+$\pmb{DESCRIPTION}$
+$\vspace{2.5pt}$
+       Bitlockersetup  is  a  tool  for  accessing  BitLocker devices in
+       GNU/Linux using the Device Mapper crypto target.  Currently  only
+       basic operations like open and close are being supported.
+
+       Only password protected BitLocker devices that use AES-XTS enryp-
+       tion can be opened. Older BitLocker versions that use AES-CBC and
+       other protectors like TPM are not supported.
+$\vspace{0.8em}$
+$\pmb{COMMANDS}$
+$\vspace{2.5pt}$
+       open DEVICE [NAME]
+              Open an existing BitLocker device using dm-crypt. The name
+              argument is optional, if not  specified,  the  created  DM
+              devices  will  be named as "bitlocker-UUID".  Password can
+              also be provided on standard input if used  together  with
+              the $\pmb{-q,} \pmb{-}\pmb{-quiet}$ option.
+
+              The  newly created Device Mapper device /dev/mapper/<NAME>
+              contains a standard NTFS filesystem that  can  be  mounted
+              using ntfs-3g.
+$\vspace{0.8em}$
+       close NAME
+$\vspace{2.5pt}$
+              Closes an opened BitLocker device. This removes the exist-
+              ing DM mapping NAME.
+$\vspace{0.8em}$
+       image DEVICE FILENAME
+              Decrypts a BitLocker device and saves it as  an  image  to
+              FILENAME.
+$\vspace{0.8em}$
+       dump DEVICE
+              Prints  the header information about an existing BitLocker
+              device.
+$\vspace{1em}$
+       uuid DEVICE
+$\vspace{2.5pt}$
+              Prints the UUID (GUID) of an existing BitLocker device.
+$\vspace{0.8em}$
+       isbitlocker DEVICE
+$\vspace{2.5pt}$
+              Checks if the  selected  device  is  a  BitLocker  device.
+              Returns  true, if DEVICE is a BitLocker device, false oth-
+              erwise.
+$\vspace{0.8em}$
+$\pmb{COMMON OPTIONS}$
+$\vspace{2.5pt}$
+       $\pmb{-h,} \pmb{-}\pmb{-help}$
+$\vspace{2.5pt}$
+              Show help text and default parameters.
+$\vspace{0.8em}$
+       $\pmb{-v,} \pmb{-}\pmb{-verbose}$
+$\vspace{2.5pt}$
+              Print more information on command execution.
+$\vspace{0.8em}$
+       $\pmb{-y,} \pmb{-}\pmb{-yes}$
+              Do not prompt for confirmation  interactively  but  always
+              assume the answer is yes.
+$\vspace{0.8em}$
+       $\pmb{-q,} \pmb{-}\pmb{-quiet}$
+              Suppress output and log messages. Overrides --verbose.
+$\vspace{0.8em}$
+       $\pmb{-}\pmb{-version}$
+$\vspace{2.5pt}$
+              Show bitlockersetup version.
+$\vspace{1em}$
+bitlockersetup 0.1             April 2019              BITLOCKERSETUP(8)
+\end{lstlisting}
+
 \priloha{Struktura zdrojových kódů}\label{attachment:sources}
 
 
