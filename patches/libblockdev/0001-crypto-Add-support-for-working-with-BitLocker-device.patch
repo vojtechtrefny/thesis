@@ -1,0 +1,330 @@
+From b0ac886310adc265f86680353024456852b33c84 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Vojt=C4=9Bch=20Trefn=C3=BD?= <vtrefny@fedoraproject.org>
+Date: Sun, 28 Apr 2019 21:07:59 +0200
+Subject: [PATCH] crypto: Add support for working with BitLocker devices
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Currently only open, close and querry technologies are supported
+by the bitlockersetup tool.
+
+Signed-off-by: Vojtěch Trefný <mail@vojtechtrefny.cz>
+---
+ docs/libblockdev-sections.txt  |   4 +
+ features.rst                   |   5 +-
+ src/lib/plugin_apis/crypto.api |  50 +++++++++++++
+ src/plugins/Makefile.am        |   2 +-
+ src/plugins/crypto.c           | 132 ++++++++++++++++++++++++++++++++-
+ src/plugins/crypto.h           |   6 ++
+ 6 files changed, 195 insertions(+), 4 deletions(-)
+
+diff --git a/docs/libblockdev-sections.txt b/docs/libblockdev-sections.txt
+index 099d7b1..47f1ebc 100644
+--- a/docs/libblockdev-sections.txt
++++ b/docs/libblockdev-sections.txt
+@@ -114,6 +114,10 @@ bd_crypto_tc_open
+ bd_crypto_tc_open_full
+ bd_crypto_tc_close
+ bd_crypto_escrow_device
++bd_crypto_bitlocker_open
++bd_crypto_bitlocker_close
++bd_crypto_device_is_bitlocker
++bd_crypto_bitlocker_uuid
+ BDCryptoTech
+ BDCryptoTechMode
+ bd_crypto_is_tech_avail
+diff --git a/features.rst b/features.rst
+index b66935e..894e7e9 100644
+--- a/features.rst
++++ b/features.rst
+@@ -177,7 +177,7 @@ CRYPTO/LUKS
+ ------------
+ 
+ :supported technologies:
+-   LUKS1 and LUKS2 encrypted devices, TrueCrypt/VeraCrypt devices (open/close only)
++   LUKS1 and LUKS2 encrypted devices, TrueCrypt/VeraCrypt devices (open/close only) and BitLocker devices (open/close only)
+ 
+ :functions:
+    * generate_backup_passphrase
+@@ -201,6 +201,9 @@ CRYPTO/LUKS
+    * escrow_device
+    * tc_open
+    * tc_close
++   * bitlocker_open
++   * bitlocker_close
++   * bitlocker_uuid
+ 
+ 
+ MULTIPATH
+diff --git a/src/lib/plugin_apis/crypto.api b/src/lib/plugin_apis/crypto.api
+index 6c31fba..88947f0 100644
+--- a/src/lib/plugin_apis/crypto.api
++++ b/src/lib/plugin_apis/crypto.api
+@@ -32,6 +32,7 @@ typedef enum {
+     BD_CRYPTO_TECH_TRUECRYPT,
+     BD_CRYPTO_TECH_ESCROW,
+     BD_CRYPTO_TECH_INTEGRITY,
++    BD_CRYPTO_TECH_BITLOCKER,
+ } BDCryptoTech;
+ 
+ typedef enum {
+@@ -941,3 +942,52 @@ gboolean bd_crypto_tc_close (const gchar *tc_device, GError **error);
+  * Tech category: %BD_CRYPTO_TECH_ESCROW-%BD_CRYPTO_TECH_MODE_CREATE
+  */
+ gboolean bd_crypto_escrow_device (const gchar *device, const gchar *passphrase, const gchar *cert_data, const gchar *directory, const gchar *backup_passphrase, GError **error);
++
++/**
++ * bd_crypto_bitlocker_uuid:
++ * @device: the queried device
++ * @error: (out): place to store error (if any)
++ *
++ * Returns: (transfer full): UUID of the @device or %NULL if failed to determine (@error
++ * is populated with the error in such cases)
++ *
++ * Tech category: %BD_CRYPTO_TECH_BITLOCKER-%BD_CRYPTO_TECH_MODE_QUERY
++ */
++gchar* bd_crypto_bitlocker_uuid (const gchar *device, GError **error);
++
++/**
++ * bd_crypto_bitlocker_close:
++ * @bitlocker_device: BitLocker device to close
++ * @error: (out): place to store error (if any)
++ *
++ * Returns: whether the given @bitlocker_device was successfully closed or not
++ *
++ * Tech category: %BD_CRYPTO_TECH_BITLOCKER-%BD_CRYPTO_TECH_MODE_OPEN_CLOSE
++ */
++gboolean bd_crypto_bitlocker_close (const gchar *bitlocker_device, GError **error);
++
++/**
++ * bd_crypto_device_is_bitlocker:
++ * @device: the queried device
++ * @error: (out): place to store error (if any)
++ *
++ * Returns: %TRUE if the given @device is a BitLocker or %FALSE if not or
++ * failed to determine (the @error) is populated with the error in such
++ * cases)
++ *
++ * Tech category: %BD_CRYPTO_TECH_BITLOCKER-%BD_CRYPTO_TECH_MODE_QUERY
++ */
++gboolean bd_crypto_device_is_bitlocker (const gchar *device, GError **error);
++
++/**
++ * bd_crypto_bitlocker_open:
++ * @device: the device to open
++ * @name: (allow-none): name for the BitLocker device or %NULL to generate name
++ * @passphrase: a passphrase for the BitLocker device
++ * @error: (out): place to store error (if any)
++ *
++ * Returns: whether the @device was successfully opened or not
++ *
++ * Tech category: %BD_CRYPTO_TECH_BITLOCKER-%BD_CRYPTO_TECH_MODE_OPEN_CLOSE
++ */
++gboolean bd_crypto_bitlocker_open (const gchar *device, const gchar *name, const gchar *passphrase, GError **error);
+diff --git a/src/plugins/Makefile.am b/src/plugins/Makefile.am
+index fd15efb..ad099f2 100644
+--- a/src/plugins/Makefile.am
++++ b/src/plugins/Makefile.am
+@@ -83,7 +83,7 @@ libbd_crypto_la_LIBADD = ${builddir}/../utils/libbd_utils.la $(GLIB_LIBS) $(CRYP
+ endif
+ libbd_crypto_la_LDFLAGS = -L${srcdir}/../utils/ -version-info 2:0:0 -Wl,--no-undefined
+ libbd_crypto_la_CPPFLAGS = -I${builddir}/../../include/
+-libbd_crypto_la_SOURCES = crypto.c crypto.h
++libbd_crypto_la_SOURCES = crypto.c crypto.h check_deps.c check_deps.h
+ endif
+ 
+ if WITH_DM
+diff --git a/src/plugins/crypto.c b/src/plugins/crypto.c
+index 359af20..1fd9f24 100644
+--- a/src/plugins/crypto.c
++++ b/src/plugins/crypto.c
+@@ -36,6 +36,7 @@
+ #endif
+ 
+ #include "crypto.h"
++#include "check_deps.h"
+ 
+ #ifndef CRYPT_LUKS
+ #define CRYPT_LUKS NULL
+@@ -51,6 +52,17 @@
+ 
+ #define UNUSED __attribute__((unused))
+ 
++static volatile guint avail_deps = 0;
++static GMutex deps_check_lock;
++
++#define DEPS_BITLOCKER 0
++#define DEPS_BITLOCKER_MASK (1 << DEPS_BITLOCKER)
++#define DEPS_LAST 1
++
++static const UtilDep deps[DEPS_LAST] = {
++    {"bitlockersetup", NULL, NULL, NULL},
++};
++
+ /**
+  * SECTION: crypto
+  * @short_description: plugin for operations with encrypted devices
+@@ -212,8 +224,23 @@ static locale_t c_locale = (locale_t) 0;
+  *
+  */
+ gboolean bd_crypto_check_deps (void) {
+-    /* nothing to do here */
+-    return TRUE;
++    GError *error = NULL;
++    guint i = 0;
++    gboolean status = FALSE;
++    gboolean ret = TRUE;
++
++    for (i=0; i < DEPS_LAST; i++) {
++        status = bd_utils_check_util_version (deps[i].name, deps[i].version,
++                                              deps[i].ver_arg, deps[i].ver_regexp, &error);
++        if (!status)
++            g_warning ("%s", error->message);
++        else
++            g_atomic_int_or (&avail_deps, 1 << i);
++        g_clear_error (&error);
++        ret = ret && status;
++    }
++
++    return ret;
+ }
+ 
+ static void crypto_log_redirect (gint level, const gchar *msg, void *usrptr __attribute__((unused))) {
+@@ -342,6 +369,14 @@ gboolean bd_crypto_is_tech_avail (BDCryptoTech tech, guint64 mode, GError **erro
+                 return FALSE;
+             } else
+                 return TRUE;
++        case BD_CRYPTO_TECH_BITLOCKER:
++            ret = mode & (BD_CRYPTO_TECH_MODE_OPEN_CLOSE|BD_CRYPTO_TECH_MODE_QUERY);
++            if (ret != mode) {
++                g_set_error (error, BD_CRYPTO_ERROR, BD_CRYPTO_ERROR_TECH_UNAVAIL,
++                             "Only 'open' and 'querry' supported for BitLocker");
++                return FALSE;
++            } else
++                return check_deps (&avail_deps, DEPS_BITLOCKER_MASK, deps, DEPS_LAST, &deps_check_lock, error);
+         default:
+             g_set_error (error, BD_CRYPTO_ERROR, BD_CRYPTO_ERROR_TECH_UNAVAIL, "Unknown technology");
+             return FALSE;
+@@ -2431,3 +2466,96 @@ gboolean bd_crypto_escrow_device (const gchar *device, const gchar *passphrase,
+     return ret;
+ }
+ #endif // WITH_BD_ESCROW
++
++/**
++ * bd_crypto_bitlocker_open:
++ * @device: the device to open
++ * @name: (allow-none): name for the BitLocker device or %NULL to generate name
++ * @passphrase: a passphrase for the BitLocker device
++ * @error: (out): place to store error (if any)
++ *
++ * Returns: whether the @device was successfully opened or not
++ *
++ * Tech category: %BD_CRYPTO_TECH_BITLOCKER-%BD_CRYPTO_TECH_MODE_OPEN_CLOSE
++ */
++gboolean bd_crypto_bitlocker_open (const gchar *device, const gchar *name, const gchar *passphrase, GError **error) {
++    const gchar *argv[7] = {"bitlockersetup", "open", "-p", passphrase, device, name, NULL};
++
++    if (!check_deps (&avail_deps, DEPS_BITLOCKER_MASK, deps, DEPS_LAST, &deps_check_lock, error))
++        return FALSE;
++
++    return bd_utils_exec_and_report_error (argv, NULL, error);
++}
++
++/**
++ * bd_crypto_bitlocker_close:
++ * @bitlocker_device: BitLocker device to close
++ * @error: (out): place to store error (if any)
++ *
++ * Returns: whether the given @bitlocker_device was successfully closed or not
++ *
++ * Tech category: %BD_CRYPTO_TECH_BITLOCKER-%BD_CRYPTO_TECH_MODE_OPEN_CLOSE
++ */
++gboolean bd_crypto_bitlocker_close (const gchar *bitlocker_device, GError **error) {
++    const gchar *argv[4] = {"bitlockersetup", "close", bitlocker_device, NULL};
++
++    if (!check_deps (&avail_deps, DEPS_BITLOCKER_MASK, deps, DEPS_LAST, &deps_check_lock, error))
++        return FALSE;
++
++    return bd_utils_exec_and_report_error (argv, NULL, error);
++}
++
++/**
++ * bd_crypto_device_is_bitlocker:
++ * @device: the queried device
++ * @error: (out): place to store error (if any)
++ *
++ * Returns: %TRUE if the given @device is a BitLocker or %FALSE if not or
++ * failed to determine (the @error) is populated with the error in such
++ * cases)
++ *
++ * Tech category: %BD_CRYPTO_TECH_BITLOCKER-%BD_CRYPTO_TECH_MODE_QUERY
++ */
++gboolean bd_crypto_device_is_bitlocker (const gchar *device, GError **error) {
++    gint status = 0;
++    gboolean success = FALSE;
++    const gchar *argv[4] = {"bitlockersetup", "isbitlocker", device, NULL};
++
++    if (!check_deps (&avail_deps, DEPS_BITLOCKER_MASK, deps, DEPS_LAST, &deps_check_lock, error))
++        return FALSE;
++
++    success = bd_utils_exec_and_report_status_error (argv, NULL, &status, error);
++    if (!success && (status == 1)) {
++        /* error here just means it's not a BitLocker device */
++        g_clear_error (error);
++    }
++
++    return success;
++}
++
++/**
++ * bd_crypto_bitlocker_uuid:
++ * @device: the queried device
++ * @error: (out): place to store error (if any)
++ *
++ * Returns: (transfer full): UUID of the @device or %NULL if failed to determine (@error
++ * is populated with the error in such cases)
++ *
++ * Tech category: %BD_CRYPTO_TECH_BITLOCKER-%BD_CRYPTO_TECH_MODE_QUERY
++ */
++gchar* bd_crypto_bitlocker_uuid (const gchar *device, GError **error) {
++    gchar *output = NULL;
++    gboolean success = FALSE;
++    const gchar *argv[4] = {"bitlockersetup", "uuid", device, NULL};
++
++    if (!check_deps (&avail_deps, DEPS_BITLOCKER_MASK, deps, DEPS_LAST, &deps_check_lock, error))
++        return FALSE;
++
++    success = bd_utils_exec_and_capture_output (argv, NULL, &output, error);
++    if (!success)
++        /* error is already populated */
++        return NULL;
++
++    output = g_strstrip (output);
++    return output;
++}
+diff --git a/src/plugins/crypto.h b/src/plugins/crypto.h
+index 8848c46..00194ff 100644
+--- a/src/plugins/crypto.h
++++ b/src/plugins/crypto.h
+@@ -46,6 +46,7 @@ typedef enum {
+     BD_CRYPTO_TECH_TRUECRYPT,
+     BD_CRYPTO_TECH_ESCROW,
+     BD_CRYPTO_TECH_INTEGRITY,
++    BD_CRYPTO_TECH_BITLOCKER,
+ } BDCryptoTech;
+ 
+ typedef enum {
+@@ -215,4 +216,9 @@ gboolean bd_crypto_tc_close (const gchar *tc_device, GError **error);
+ 
+ gboolean bd_crypto_escrow_device (const gchar *device, const gchar *passphrase, const gchar *cert_data, const gchar *directory, const gchar *backup_passphrase, GError **error);
+ 
++gboolean bd_crypto_bitlocker_open (const gchar *device, const gchar *name, const gchar *passphrase, GError **error);
++gboolean bd_crypto_bitlocker_close (const gchar *bitlocker_device, GError **error);
++gboolean bd_crypto_device_is_bitlocker (const gchar *device, GError **error);
++gchar* bd_crypto_bitlocker_uuid (const gchar *device, GError **error);
++
+ #endif  /* BD_CRYPTO */
+-- 
+2.20.1
+
