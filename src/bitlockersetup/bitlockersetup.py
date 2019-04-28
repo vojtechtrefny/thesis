@@ -73,7 +73,9 @@ def process_commands(args):
 
     # these modes need password
     if args.mode in (Modes.OPEN, Modes.IMAGE):
-        if args.quiet:
+        if args.passphrase:
+            password = args.passphrase[0]
+        elif args.quiet:
             # quiet mode, read password from stdin
             password = args.input.read()
         else:
@@ -160,6 +162,8 @@ def parse_args():
 
     # subparser for the 'open' command
     parser_open = subparsers.add_parser("open", help="Open a BitLocker device")
+    parser_open.add_argument("-p", "--passphrase", dest="passphrase", nargs=1,
+                             help=argparse.SUPPRESS)
     parser_open.add_argument("device", help="device to open")
     parser_open.add_argument("name", help="name for the open device (optional)", nargs="?", default=None)
     parser_open.add_argument("input", nargs='?', type=argparse.FileType("r"),
