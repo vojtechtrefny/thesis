@@ -11,9 +11,6 @@ Source0:   %{srcname}-%{version}.tar.gz
 
 BuildArch: noarch
 
-%description
-A small tool for accessing and analysing BitLocker devices using Device Mapper.
-
 BuildRequires: python3-devel
 BuildRequires: python3-pylint
 BuildRequires: python3-pycodestyle
@@ -21,6 +18,9 @@ BuildRequires: python3-pycodestyle
 Requires: python3-pycryptodomex
 Requires: python3-cryptography
 Requires: device-mapper
+
+%description
+A small tool for accessing and analysing BitLocker devices using Device Mapper.
 
 %prep
 %setup -q
