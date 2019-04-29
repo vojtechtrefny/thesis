@@ -1,0 +1,260 @@
+From 2e9a0e782e4e41011ed7283c082a08cddabb4927 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Vojt=C4=9Bch=20Trefn=C3=BD?= <vtrefny@fedoraproject.org>
+Date: Mon, 29 Apr 2019 19:26:00 +0200
+Subject: [PATCH] Add support for BitLocker devices
+
+---
+ src/udiskslinuxblock.c            | 23 ++++++++++++++++++++++-
+ src/udiskslinuxblock.h            |  2 ++
+ src/udiskslinuxblockobject.c      |  1 +
+ src/udiskslinuxencrypted.c        | 21 +++++++++++++++++----
+ src/udiskslinuxencryptedhelpers.c | 19 +++++++++++++++++++
+ src/udiskslinuxencryptedhelpers.h |  9 +++++++++
+ udisks/udisksclient.c             |  1 +
+ 7 files changed, 71 insertions(+), 5 deletions(-)
+
+diff --git a/src/udiskslinuxblock.c b/src/udiskslinuxblock.c
+index 703ab4f3..f20a2db3 100644
+--- a/src/udiskslinuxblock.c
++++ b/src/udiskslinuxblock.c
+@@ -39,6 +39,7 @@
+ 
+ #include <blockdev/part.h>
+ #include <blockdev/fs.h>
++#include <blockdev/crypto.h>
+ 
+ #include "udiskslogging.h"
+ #include "udiskslinuxblock.h"
+@@ -1058,7 +1059,7 @@ udisks_linux_block_update (UDisksLinuxBlock       *block,
+       gchar *dm_uuid;
+       dm_uuid = get_sysfs_attr (device->udev_device, "dm/uuid");
+       if (dm_uuid != NULL &&
+-           (g_str_has_prefix (dm_uuid, "CRYPT-LUKS") || g_str_has_prefix (dm_uuid, "CRYPT-TCRYPT")))
++           (g_str_has_prefix (dm_uuid, "CRYPT-LUKS") || g_str_has_prefix (dm_uuid, "CRYPT-BitLocker") || g_str_has_prefix (dm_uuid, "CRYPT-TCRYPT")))
+         {
+           gchar *slave_sysfs_path;
+           slave_sysfs_path = get_slave_sysfs_path (g_udev_device_get_sysfs_path (device->udev_device));
+@@ -1267,6 +1268,19 @@ udisks_linux_block_update (UDisksLinuxBlock       *block,
+   udisks_block_set_id_uuid (iface, s);
+   g_free (s);
+ 
++  if (g_strcmp0 (udisks_block_get_id_usage (iface), "crypto") == 0 &&
++      g_strcmp0 (udisks_block_get_id_type (iface), "BitLocker") == 0)
++    {
++      s = bd_crypto_bitlocker_uuid (device_file, &error);
++      if (s)
++        {
++          udisks_block_set_id_uuid (iface, s);
++          g_free (s);
++        }
++      else
++          g_clear_error (&error);
++    }
++
+   update_hints (block, device, drive);
+   update_configuration (block, daemon);
+ #ifdef HAVE_LIBMOUNT
+@@ -2788,6 +2802,13 @@ udisks_linux_block_is_tcrypt (UDisksBlock *block)
+          g_strcmp0 (udisks_block_get_id_type (block), "crypto_TCRYPT") == 0;
+ }
+ 
++gboolean
++udisks_linux_block_is_bitlocker (UDisksBlock *block)
++{
++  return g_strcmp0 (udisks_block_get_id_usage (block), "crypto") == 0 &&
++         g_strcmp0 (udisks_block_get_id_type (block), "BitLocker") == 0;
++}
++
+ gboolean
+ udisks_linux_block_is_unknown_crypto (UDisksBlock *block)
+ {
+diff --git a/src/udiskslinuxblock.h b/src/udiskslinuxblock.h
+index 78f29649..a61293ef 100644
+--- a/src/udiskslinuxblock.h
++++ b/src/udiskslinuxblock.h
+@@ -60,6 +60,8 @@ gboolean     udisks_linux_block_is_luks (UDisksBlock *block);
+ 
+ gboolean     udisks_linux_block_is_tcrypt (UDisksBlock *block);
+ 
++gboolean     udisks_linux_block_is_bitlocker (UDisksBlock *block);
++
+ gboolean     udisks_linux_block_is_unknown_crypto (UDisksBlock *block);
+ 
+ void         udisks_linux_block_encrypted_lock (UDisksBlock *block);
+diff --git a/src/udiskslinuxblockobject.c b/src/udiskslinuxblockobject.c
+index b7343809..ce375327 100644
+--- a/src/udiskslinuxblockobject.c
++++ b/src/udiskslinuxblockobject.c
+@@ -771,6 +771,7 @@ encrypted_check (UDisksObject *object)
+ 
+   return udisks_linux_block_is_luks (block) ||
+          udisks_linux_block_is_tcrypt (block) ||
++         udisks_linux_block_is_bitlocker (block) ||
+          udisks_linux_block_is_unknown_crypto (block);
+ }
+ 
+diff --git a/src/udiskslinuxencrypted.c b/src/udiskslinuxencrypted.c
+index 1c4ae998..2fd61a7c 100644
+--- a/src/udiskslinuxencrypted.c
++++ b/src/udiskslinuxencrypted.c
+@@ -354,6 +354,7 @@ handle_unlock (UDisksEncrypted        *encrypted,
+   const gchar *keyfiles[MAX_TCRYPT_KEYFILES] = {};
+   CryptoJobData data;
+   gboolean is_luks;
++  gboolean is_bitlocker;
+   gboolean handle_as_tcrypt;
+   void *open_func;
+ 
+@@ -368,6 +369,7 @@ handle_unlock (UDisksEncrypted        *encrypted,
+   daemon = udisks_linux_block_object_get_daemon (UDISKS_LINUX_BLOCK_OBJECT (object));
+   state = udisks_daemon_get_state (daemon);
+   is_luks = udisks_linux_block_is_luks (block);
++  is_bitlocker = udisks_linux_block_is_bitlocker (block);
+   handle_as_tcrypt = udisks_linux_block_is_tcrypt (block) || udisks_linux_block_is_unknown_crypto (block);
+ 
+   /* get TCRYPT options */
+@@ -400,12 +402,12 @@ handle_unlock (UDisksEncrypted        *encrypted,
+    */
+ 
+   /* Fail if the device is not a LUKS or possible TCRYPT device */
+-  if (!(is_luks || handle_as_tcrypt))
++  if (!(is_luks || is_bitlocker || handle_as_tcrypt))
+     {
+       g_dbus_method_invocation_return_error (invocation,
+                                              UDISKS_ERROR,
+                                              UDISKS_ERROR_FAILED,
+-                                             "Device %s does not appear to be a LUKS or TCRYPT device",
++                                             "Device %s does not appear to be a LUKS, BitLocker or TCRYPT device",
+                                              udisks_block_get_device (block));
+       goto out;
+     }
+@@ -515,6 +517,9 @@ handle_unlock (UDisksEncrypted        *encrypted,
+   else {
+     if (is_luks)
+       name = g_strdup_printf ("luks-%s", udisks_block_get_id_uuid (block));
++    else if (is_bitlocker)
++      /* bitlockersetup will set the name for us if not specified */
++      name = NULL;
+     else
+       /* TCRYPT devices don't have a UUID, so we use the device number instead */
+       name = g_strdup_printf ("tcrypt-%" G_GUINT64_FORMAT, udisks_block_get_device_number (block));
+@@ -528,6 +533,8 @@ handle_unlock (UDisksEncrypted        *encrypted,
+    * update triggered by the unlock. */
+   if (is_luks)
+     udisks_encrypted_set_hint_encryption_type (encrypted, "LUKS");
++  else if (is_bitlocker)
++    udisks_encrypted_set_hint_encryption_type (encrypted, "BitLocker");
+   else
+     udisks_encrypted_set_hint_encryption_type (encrypted, "TCRYPT");
+ 
+@@ -548,6 +555,8 @@ handle_unlock (UDisksEncrypted        *encrypted,
+ 
+   if (is_luks)
+     open_func = luks_open_job_func;
++  else if (is_bitlocker)
++    open_func = bitlocker_open_job_func;
+   else
+     open_func = tcrypt_open_job_func;
+ 
+@@ -658,6 +667,7 @@ udisks_linux_encrypted_lock (UDisksLinuxEncrypted   *encrypted,
+   gchar *cleartext_path = NULL;
+   void *close_func;
+   gboolean is_luks;
++  gboolean is_bitlocker;
+   gboolean handle_as_tcrypt;
+ 
+   object = udisks_daemon_util_dup_object (encrypted, error);
+@@ -671,6 +681,7 @@ udisks_linux_encrypted_lock (UDisksLinuxEncrypted   *encrypted,
+   daemon = udisks_linux_block_object_get_daemon (UDISKS_LINUX_BLOCK_OBJECT (object));
+   state = udisks_daemon_get_state (daemon);
+   is_luks = udisks_linux_block_is_luks (block);
++  is_bitlocker = udisks_linux_block_is_bitlocker (block);
+   handle_as_tcrypt = udisks_linux_block_is_tcrypt (block) || udisks_linux_block_is_unknown_crypto (block);
+ 
+   /* TODO: check if the device is mentioned in /etc/crypttab (see crypttab(5)) - if so use that
+@@ -679,12 +690,12 @@ udisks_linux_encrypted_lock (UDisksLinuxEncrypted   *encrypted,
+    */
+ 
+   /* Fail if the device is not a LUKS or possible TCRYPT device */
+-  if (!(is_luks || handle_as_tcrypt))
++  if (!(is_luks || is_bitlocker || handle_as_tcrypt))
+     {
+       g_set_error (error,
+                    UDISKS_ERROR,
+                    UDISKS_ERROR_FAILED,
+-                   "Device %s does not appear to be a LUKS or TCRYPT device",
++                   "Device %s does not appear to be a LUKS, BitLocker or TCRYPT device",
+                    udisks_block_get_device (block));
+       ret = FALSE;
+       goto out;
+@@ -759,6 +770,8 @@ udisks_linux_encrypted_lock (UDisksLinuxEncrypted   *encrypted,
+ 
+   if (is_luks)
+     close_func = luks_close_job_func;
++  else if (is_bitlocker)
++    close_func = bitlocker_close_job_func;
+   else
+     close_func = tcrypt_close_job_func;
+ 
+diff --git a/src/udiskslinuxencryptedhelpers.c b/src/udiskslinuxencryptedhelpers.c
+index 584537fd..8d09d8be 100644
+--- a/src/udiskslinuxencryptedhelpers.c
++++ b/src/udiskslinuxencryptedhelpers.c
+@@ -113,3 +113,22 @@ gboolean tcrypt_close_job_func (UDisksThreadedJob  *job,
+   CryptoJobData *data = (CryptoJobData*) user_data;
+   return bd_crypto_tc_close (data->map_name, error);
+ }
++
++gboolean bitlocker_open_job_func (UDisksThreadedJob  *job,
++                                  GCancellable       *cancellable,
++                                  gpointer            user_data,
++                                  GError            **error)
++{
++  CryptoJobData *data = (CryptoJobData*) user_data;
++  return bd_crypto_bitlocker_open (data->device, data->map_name,
++                                   data->passphrase->str, error);
++}
++
++gboolean bitlocker_close_job_func (UDisksThreadedJob  *job,
++                                   GCancellable       *cancellable,
++                                   gpointer            user_data,
++                                   GError            **error)
++{
++  CryptoJobData *data = (CryptoJobData*) user_data;
++  return bd_crypto_bitlocker_close (data->map_name, error);
++}
+diff --git a/src/udiskslinuxencryptedhelpers.h b/src/udiskslinuxencryptedhelpers.h
+index c524f4ec..b5cf942d 100644
+--- a/src/udiskslinuxencryptedhelpers.h
++++ b/src/udiskslinuxencryptedhelpers.h
+@@ -74,6 +74,15 @@ gboolean tcrypt_close_job_func (UDisksThreadedJob  *job,
+                                 gpointer            user_data,
+                                 GError            **error);
+ 
++gboolean bitlocker_open_job_func (UDisksThreadedJob  *job,
++                                  GCancellable       *cancellable,
++                                  gpointer            user_data,
++                                  GError            **error);
++
++gboolean bitlocker_close_job_func (UDisksThreadedJob  *job,
++                                   GCancellable       *cancellable,
++                                   gpointer            user_data,
++                                   GError            **error);
+ G_END_DECLS
+ 
+ #endif /* __UDISKS_LINUX_ENCRYPTED_HELPERS_H__ */
+diff --git a/udisks/udisksclient.c b/udisks/udisksclient.c
+index f19f3fb8..f511bc7a 100644
+--- a/udisks/udisksclient.c
++++ b/udisks/udisksclient.c
+@@ -1928,6 +1928,7 @@ static const struct
+   {"crypto",     "crypto_LUKS",       "*",     NC_("fs-type", "LUKS Encryption (version %s)"),      NC_("fs-type", "LUKS")},
+   {"crypto",     "crypto_LUKS",       NULL,    NC_("fs-type", "LUKS Encryption"),                   NC_("fs-type", "LUKS")},
+   {"crypto",     "crypto_TCRYPT",     NULL,    NC_("fs-type", "VeraCrypt/TrueCrypt Encryption"),    NC_("fs-type", "VeraCrypt/TrueCrypt")},
++  {"crypto",     "BitLocker",         NULL,    NC_("fs-type", "BitLocker Encryption"),              NC_("fs-type", "BitLocker")},
+   {"filesystem", "VMFS",              "*",     NC_("fs-type", "VMFS (version %s)"),                 NC_("fs-type", "VMFS (v%s)")},
+   {"filesystem", "VMFS",              NULL,    NC_("fs-type", "VMFS"),                              NC_("fs-type", "VMFS")},
+   {"raid",       "VMFS_volume_member", "*",    NC_("fs-type", "VMFS Volume Member (version %s)"),   NC_("fs-type", "VMFS Member (v%s)")},
+-- 
+2.20.1
+
