@@ -145,8 +145,10 @@ def create_dm_device(fve, device, fvek_open_key, mapper_name):
                                    device=device,
                                    offset=start)
 
+    uuid = "CRYPT-BitLocker-%s" % fve.guid
+
     # dmsetup command
-    cmd = "echo -e '%s' | dmsetup create %s" % (table, mapper_name)
+    cmd = "echo -e '%s' | dmsetup create %s -u %s" % (table, mapper_name, uuid)
 
     ret, out = utils.run_command(cmd)
     if ret != 0:
