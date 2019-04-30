@@ -14,6 +14,9 @@ BuildArch: noarch
 BuildRequires: python3-devel
 BuildRequires: python3-pylint
 BuildRequires: python3-pycodestyle
+BuildRequires: python3-pocketlint
+BuildRequires: python3-pycryptodomex
+BuildRequires: python3-cryptography
 
 Requires: python3-pycryptodomex
 Requires: python3-cryptography
