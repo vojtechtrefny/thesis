@@ -48,6 +48,8 @@ class FVE():
         self._metadata_size = 0
         self._device_size = 0
 
+        self._encryption_type = 0
+
         self._guid = None
 
         self._parse()
@@ -217,6 +219,19 @@ class FVE():
                 return entry
 
         raise RuntimeError("No Volume header block entry found in this FVE header")
+
+    @property
+    def encryption_type(self):
+        """
+        Type of encryption used for data encryption
+
+        :rtype: :func:`~constants.ENCRYPTION_METHODS`
+        """
+
+        if not self._encryption_type:
+            self._encryption_type = utils.le_decode_uint8(self.header[36:38])
+
+        return self._encryption_type
 
     def get_fvek_by_passphrase(self, password):
         """
