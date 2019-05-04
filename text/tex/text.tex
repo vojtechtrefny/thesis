@@ -5,7 +5,7 @@
 % ============================================================================ %
 \nn{Úvod}
 
-Šifrování dat je jedním ze základních způsobů jejich ochrany obzvlášť na přenosných zařízeních, jako jsou notebooky nebo externí disky. Bohužel v~současné době neexistuje žádné řešení, které by spolehlivě fungovalo v~heterogenním prostředí a v~případě externích disků, které mají být používány jak v~prostředí Microsoft Windows, tak v~li\-nu\-xo\-vém prostředí, je třeba se spoléhat buď na nástroje třetích stran, nebo na ne vždy funkční či uživatelsky přívětivá řešení, která v~jednom prostředí zajistí podporu pro nativní šifrování prostředí druhého.
+Šifrování dat je jedním ze základních způsobů jejich ochrany a to obzvlášť na přenosných zařízeních jako jsou notebooky nebo externí disky. Bohužel v~současné době neexistuje žádné řešení, které by spolehlivě fungovalo v~heterogenním prostředí a v~případě externích disků, které mají být používány jak v~prostředí Microsoft Windows, tak v~li\-nu\-xo\-vém prostředí, je třeba se spoléhat buď na nástroje třetích stran, nebo na ne vždy funkční či uživatelsky přívětivá řešení, která v~jednom prostředí zajistí podporu pro nativní šifrování prostředí druhého.
 
 Cílem této práce je prozkoumat technologii BitLocker, která představuje nativní implementaci šifrování disku v~operačním systému Microsoft Windows, a podle možností implementovat nové, případně upravit stávající nástroje pro práci s~blokovými zařízeními v~prostředí operačního systému GNU/Linux tak, aby uživatel byl schopen s~BitLocker zařízeními pracovat stejně jako se zařízeními šifrovanými pomocí nativních linuxových technologií.
 
@@ -19,11 +19,11 @@ Praktická část této práce ve čtvrté kapitole obecně představuje technol
 
 \n{1}{Šifrování disku}\label{sec:fde}
 
-Šifrování disku, anglicky \emph{Full Disk Encryption} (FDE) nebo \emph{Whole Disk Encryption} je proces, při kterém dochází k~šifrování všech dat na disku, včetně systémových souborů operačního systému. K~datům na disku pak má uživatel přístup pouze po úspěšné autentizaci. Data na disku zůstávají stále šifrovaná a teprve, když uživatel potřebuje číst či zapisovat data, jsou potřebné sektory disku transparentně před čtením dešifrovány a před zápisem opět zašifrovány. Šifrování disku může být řešeny softwarově, ale i hardwarově v~podobě disků, které šifrování implementují ve svém firmwaru.\cite{Scarfone2007}
+Šifrování disku, anglicky \emph{Full Disk Encryption} (FDE) nebo \emph{Whole Disk Encryption} je proces, při kterém dochází k~šifrování všech dat na disku, včetně systémových souborů operačního systému. K~datům na disku pak má uživatel přístup pouze po úspěšné autentizaci. Data na disku zůstávají stále šifrovaná a teprve, když uživatel potřebuje číst či zapisovat data, jsou potřebné sektory disku transparentně před čtením dešifrovány a před zápisem opět zašifrovány. Šifrování disku může být řešeno softwarově, ale i hardwarově v~podobě disků, které šifrování implementují ve svém firmwaru.\cite{Scarfone2007}
 
 Kromě šifrování disku existují i další technologie, které šifrují pouze části dat ulo\-že\-ných na blokových zařízeních. Příkladem může být šifrování v~podobě speciálních šifrovaných kontejnerů, šifrování pouze vybraných diskových oddílů nebo jen je\-dno\-tli\-vých souborů či složek. Pouze šifrování celého disku však zaručuje maximální možnou bez\-peč\-nost, kdy jsou šifrována všechna citlivá data včetně například odkládacích oddílů (swap), dočasných souborů a metadat o~ši\-fro\-va\-ných souborech.\cite{Scarfone2007}
 
-Ani šifrování disku však nepředstavuje stoprocentní ochranu dat. Pokud útočník získá přístup k~počítači s~běžícím systémem, může z~jeho paměti získat šifrovací klíč, který v~ní musí být dobu běhu systému uložen. Ačkoli se obecně předpokládá, že po přerušení napájení jsou data z~operační paměti okamžitě ztracena, výzkumníci z~Princetonské univerzity prokázali, že data je možné přečíst ještě několik sekund po přerušení napájení. V~případě zchlazení paměti na nižší teplotu se tento čas výrazně prodlužuje a například při -50 $^{\circ}$C je po deseti minutách poškozeno dokonce méně než jedno procento dat. Díky tomu je možné po přendání paměťových modulů do jiného stroje přečíst jejich obsah a nalézt v~něm uložené klíče.\cite{Halderman20090501}
+Ani šifrování disku však nepředstavuje stoprocentní ochranu dat. Pokud útočník získá přístup k~počítači s~běžícím systémem, může z~jeho paměti získat šifrovací klíč, který v~ní musí být dobu běhu systému uložen. Ačkoli se obecně předpokládá, že po přerušení napájení jsou data z~operační paměti okamžitě ztracena, výzkumníci z~Princetonské univerzity prokázali, že data je možné přečíst ještě několik sekund po přerušení napájení. V~případě zchlazení paměti na nižší teplotu se tento čas výrazně prodlužuje a například při -50 $^{\circ}$C je po deseti minutách poškozeno dokonce méně než jedno procento dat. Díky tomu je možné po přemístění paměťových modulů do jiného stroje přečíst jejich obsah a nalézt v~něm uložené klíče.\cite{Halderman20090501}
 
 \n{1}{BitLocker}
 
@@ -37,7 +37,7 @@ BitLocker používá několik různých kryptografických funkcí a to jak pro �
 
 \n{3}{AES-CBC}\label{sec:aes-cbc}
 
-AES je standardní široce používaná bloková šifra\cite{FIPS197}, která je v~CBC módu používána na šifrování dat na blokových zařízeních. Ve starších verzích BitLockeru používaná pro šifrování dat uložených na šifrovaném zařízení.
+AES je standardní široce používaná bloková šifra\cite{FIPS197}, která je v~CBC módu používána na šifrování dat na blokových zařízeních. Ve starších verzích BitLockeru se AES-CBC používá pro šifrování dat uložených na šifrovaném zařízení.
 
 Původní návrh CBC módu byl patentován v~roce 1978\cite{Ehrsam1978} a řešil problém staršího ECB módu, při jehož použití vzniká zašifrováním dvou stejných bloků otevřeného textu stejný šifrovaný text. Tento problém CBC řeší tak, že každý blok otevřeného textu je napřed XORován s~předchozím šifrovaným blokem. Standardně tedy šifrování v~CBC módu probíhá následovně
 
@@ -47,7 +47,7 @@ C_i = E(K, P_i \oplus C_{i-1}) \quad \text{pro}\ i = 1, \dots, k~\\ \nonumber
 
 kde $E$ je použitá šifrovací funkce (AES), $C_i$ výsledný šifrovaný blok, $K$ klíč, $P_i$ blok otevřeného textu a $C_{i-1}$ předchozí šifrovaný blok. Protože pro první blok textu neexistuje žádný předchozí blok $C_0$, se kterým by mohl být XORován, zavádí se nová hodnota, takzvaný \emph{inicializační vektor}, který se použije pro první blok místo předchozího šifrovaného bloku.\cite{Kohnoc2010}
 
-\obr{Schéma šifrování pomocí blokové šifry v~CBC módu\cite{WikimediaCBC}}{fig:cbc-mode}{0.85}{img/cbc.png}
+\obr{Schéma šifrování pomocí blokové šifry v~CBC módu\cite{WikimediaCBC}}{fig:cbc-mode}{0.90}{img/cbc.png}
 
 Pro BitLocker je v~případě AES-CBC použito jako inicializační vektor číslo sektoru, navíc ještě zašifrované stejným klíčem, který je využit i pro šifrování textu.
 
@@ -186,7 +186,7 @@ Pro samotnou práci s~BitLocker zařízením v~linuxovém prostředí je nejdůl
 		\label{fig:bitlocker-device}
 \end{figure}
 
-Na obrázku \ref{fig:bitlocker-device} je nastíněna zjednodušená struktura uložení dat a metadat na zařízení šifrovaném pomocí BitLockeru. Na začátku zařízení se nachází 8 KiB velká hla\-vič\-ka (podrobněji popsána v~části \ref{sec:header}) obsahující základní data pro jeho identifikaci a mezi zašifrovanými daty jsou uloženy tři kopie takzvaných FVE metadat, každá o~velikosti 64 KiB\footnote{Velikosti odpovídají místu, které je pro daná metadata na zařízení vyhrazeno. Ve skutečnosti mohou být metadata mnohem menší.} (podrobněji popsány v~části \ref{sec:fve-metadata}). Čísla nad jednotlivými \uv{částmi} schématu odpovídají jejich velikosti v~sektorech pro testovací zařízení o~velikosti 100~MiB, které bylo vytvořeno ve Windows 10.
+Na obrázku \ref{fig:bitlocker-device} je nastíněna zjednodušená struktura uložení dat a metadat na zařízení šifrovaném pomocí BitLockeru. Na začátku zařízení se nachází 8 KiB velká hla\-vič\-ka (podrobněji popsána v~části \ref{sec:header}) obsahující základní data pro jeho identifikaci a mezi zašifrovanými daty jsou uloženy tři kopie takzvaných FVE metadat, každá o~velikosti 64 KiB\footnote{Velikosti odpovídají místu, které je pro daná metadata na zařízení vyhrazeno. Ve skutečnosti mohou být metadata mnohem menší.} (podrobněji popsány v~části \ref{sec:fve-metadata}). Čísla nad jednotlivými částmi schématu odpovídají jejich velikosti v~sektorech pro testovací zařízení o~velikosti 100~MiB, které bylo vytvořeno ve Windows 10.
 
 \n{3}{Hlavička}\label{sec:header}
 
@@ -322,7 +322,7 @@ Struktura FVE je relativně jednoduchá a je popsaná v~tabulce \ref{tab:fve-ent
    8 &  & data  \\ \hline
 }
 
-Typ a hodnota označují, co je v~daném záznamu uloženo. Známé typy a hodnoty jsou popsány v~tabulce \ref{tab:fve-entry-types}. U~typů se typicky jedná buď o~klíč (FVEK, VMK), nebo obecnou \emph{property}. Hodnota pak dále specifikuje, jak je daný typ uložen (zašifrovaný klíč, textový řetězec).
+Typ a hodnota označují, co je v~daném záznamu uloženo. Známé typy a hodnoty jsou popsány v~tabulce \ref{tab:fve-entry-types}. U~typů se typicky jedná buď o~klíč (FVEK, VMK), nebo obecnou vlastnosti (\emph{property}). Hodnota pak dále specifikuje, jak je daný typ uložen (zašifrovaný klíč, textový řetězec).
 
 Způsob uložení dat záleží na tom, jaká konkrétní data jsou v~záznamu uložena. U~\uv{jednoduchých} záznamů, jako je například popisek, je v~datech uložen textový řetězec uložený v~kódování UTF-16, u~\uv{složitějších} záznamů, jako jsou například klíče, mají data vlastní strukturu včetně dalších záznamů.
 
@@ -337,9 +337,9 @@ Způsob uložení dat záleží na tom, jaká konkrétní data jsou v~záznamu u
   \cline{1-2} \cline{4-5}
    \multicolumn{2}{|c|}{\textbf{Typy}} &  & \multicolumn{2}{|c|}{\textbf{Hodnoty}} \\ \cline{1-2} \cline{4-5}
    typ & popis &  & typ & popis \\ \cline{1-2} \cline{4-5}
-   0 & property & & 0 & smazáno \\ \cline{1-2} \cline{4-5}
+   0 & vlastnost & & 0 & smazáno \\ \cline{1-2} \cline{4-5}
    1 & VMK & & 1 & klíč \\ \cline{1-2} \cline{4-5}
-   2 & FVEK & & 2 & string \\ \cline{1-2} \cline{4-5}
+   2 & FVEK & & 2 & textový řetězec \\ \cline{1-2} \cline{4-5}
    7 & popisek & & 5 & AES-CCM šifrovaný klíč \\ \cline{1-2} \cline{4-5}
    15 & hlavička disku\footnotemark & & 6 & TPM klíč \\ \cline{1-2} \cline{4-5}
    \multicolumn{2}{c}{} & & 8 & VMK \\ \cline{4-5}
@@ -461,7 +461,7 @@ První část VMK struktury je v~celku běžná --- obsahuje identifikátor klí
    28 &  & metadatové záznamy \\ \hline
 }
 
-Kompletní VMK klíč chráněný záložním heslem je zobrazen na obrázku \ref{fig:vmk-bpwprotected}. Zvý\-raz\-ně\-no je GUID, typ ochrany (8 --- heslo) a dva připojené záznamy, oba typu property, první obsahující sůl potřebnou pro odvození klíče potřebného pro dešifrování VMK ze záložního hesla (funkcionalita odvození klíče z~hesla je popsána v~části \ref{sec:kdf}) a druhá obsahující samotný klíč (textový výpis je debugovacím výstupem z~nástroje vytvořeného v~rámci praktické části).
+Kompletní VMK klíč chráněný záložním heslem je zobrazen na obrázku \ref{fig:vmk-bpwprotected}. Zvý\-raz\-ně\-no je GUID, typ ochrany (8 --- heslo) a dva připojené záznamy, první obsahující sůl potřebnou pro odvození klíče potřebného pro dešifrování VMK ze záložního hesla (funkcionalita odvození klíče z~hesla je popsána v~části \ref{sec:kdf}) a druhá obsahující samotný klíč (textový výpis je debugovacím výstupem z~nástroje vytvořeného v~rámci praktické části).
 
 \begin{figure}[h]
 		\centering
@@ -574,7 +574,7 @@ Nejvýraznější změnou je nejspíše změna algoritmu použitého pro šifrov
 
 \n{3}{Hlavička}
 
-Samotná BitLocker hlavička se změnila jen minimálně. Zajímavé je, že starší verze obsahuje offset pouze pouze první kopie FVE metadat a to přesto, že i tato verze obsahuje tři kopie. Offsety ostatních kopií je tak třeba vyčíst ze samotných metadat. Díky tomu se všechna metadata specifická pro BitLocker vešla do nevyužitých oblastí v~NTFS hlavičce (od které je BitLocker hlavička odvozen, viz \ref{sec:header}) a nezasahují tak do boot kódu. Na druhou stranu v~případě poškození první kopie FVE metadat bude složitější najít na disku dvě zbylé záložní kopie.
+Samotná BitLocker hlavička se změnila jen minimálně. Zajímavé je, že starší verze obsahuje offset pouze první kopie FVE metadat a to přesto, že i tato verze obsahuje tři kopie. Offsety ostatních kopií je tak třeba vyčíst ze samotných metadat. Díky tomu se všechna metadata specifická pro BitLocker vešla do nevyužitých oblastí v~NTFS hlavičce (od které je BitLocker hlavička odvozen, viz \ref{sec:header}) a nezasahují tak do boot kódu. Na druhou stranu v~případě poškození první kopie FVE metadat bude složitější najít na disku dvě zbylé záložní kopie.
 
 \n{3}{FVE metadata}
 
@@ -696,13 +696,13 @@ Splnění výše uvedených požadavků lze rozdělit do tří částí:
 
 První část lze vyřešit pomocí existujícího kernelového ovladače Device Mapper. Přímá nízkoúrovňová práce s~blokovými zařízeními tak bude vyřešena přímo v~kernelu a pro (de)šifrování dat bude využito kryptografických funkcí z~kernel crypto API. Pro podporu nejnovější verze BitLockeru s~šifrováním AES-XTS dokonce není potřeba Device Mapper nijak upravovat. Podrobněji je toto řešení probráno v~části \ref{sec:device-mapper}.
 
-Pro druhou část byl v~rámci této práce implementován nový nástroj, který z~BitLocker hlavičky a FVE metadat zjistí strukturu daného zařízení a se znalostí hesla získá FVEK a připraví správnou konfiguraci pro Device Mapper pro vytvoření otevřeného zařízení. Tento nový nástroj je podrobněji popsán v~části \ref{sec:implementace-nastroj}.
+Pro druhou část byl v~rámci této práce implementován nový nástroj, který z~BitLocker hlavičky a FVE metadat zjistí strukturu daného zařízení a se znalostí hesla získá FVEK a připraví správnou konfiguraci pro Device Mapper potřebnou pro vytvoření otevřeného zařízení. Tento nový nástroj je podrobněji popsán v~části \ref{sec:implementace-nastroj}.
 
-Aby byla zajištěna podpora BitLockeru v~grafických rozhraních, je třeba integrovat vytvořený nástroj do existujících nástrojů pro práci s~úložnými zařízeními, především do démona UDisks, který zajistí, že BitLocker zařízení bude rozpoznáno jako podporované šifrované zařízení a uživateli nabídnuto jeho odemčení. Změny potřebné v~těchto nástrojích jsou popsány v~části \ref{sec:integrace}.
+Aby byla zajištěna podpora BitLockeru v~grafických rozhraních, je třeba integrovat vytvořený nástroj do existujících nástrojů pro práci s~úložnými zařízeními, především do démona UDisks, který zajistí, že BitLocker zařízení bude rozpoznáno jako podporované šifrované zařízení a uživateli nabídnuta možnost jeho odemčení. Změny potřebné v~těchto nástrojích jsou popsány v~části \ref{sec:integrace}.
 
 \n{1}{Device Mapper}\label{sec:device-mapper}
 
-Device Mapper je kernelový ovladač, který poskytuje rozhraní pro vytváření nových blokových zařízení pomocí jejich mapování na zařízení existující. Umožňuje tak například vytvořit z~jednoho disku několik menších blokových zařízení, nebo naopak spojit více disků do jednoho zařízení.\cite{RedHat2019}
+Device Mapper je kernelový ovladač, který poskytuje rozhraní pro vytváření nových blokových zařízení pomocí jejich mapování na zařízení existující. Umožňuje tak například vytvořit z~jednoho disku několik menších blokových zařízení, nebo naopak spojit více disků do jednoho nového zařízení.\cite{RedHat2019}
 
 Device mapper umožňuje vytváření různých zařízení s~různými vlastnostmi, díky různým modulům, takzvaným \emph{targetům}. Ty poskytují jak funkcionalitu pro prosté mapování mezi dvěma či více zařízeními v~podobě targetu \emph{dm-linear}, ale existují i složitější targety, které poskytují i další funkcionalitu nad rámec tohoto mapování, jako například target \emph{dm-raid}, který přidává logiku RAID zařízení.
 
@@ -722,7 +722,7 @@ Z~pohledu nástrojů pracujících s~mapovaným zařízením, se tak jedná o~no
 
 Crypt target se používá primárně pro šifrování disku v~linuxových systémech společně s~technologií LUKS. LUKS se stará o~správu klíčů a definuje také diskový formát pro ukládání metadat. Podobně jako u~BitLockeru je i u~LUKSu klíč pro (de)šifrování dat uložen přímo na disku v~metadatech chráněný heslem, případně dalšími způsoby. Crypt target má tedy v~tomto případě na starosti ukládání dat a jejich dešifrování při čtení a šifrování při zápisu a LUKS slouží pro zjednodušení práce se šifrovaným zařízením, aby si uživatel nemusel pamatovat klíč a další informace nutné pro správné nastavení šifrování.\cite{Fruhwirth2005}
 
-Jak může vypadat Device Mapper tabulka jednoduchého šifrovaného zařízení vy\-tvo\-ře\-né\-ho pomocí technologie LUKS/dm-crypt je vidět v~tabulce \ref{tab:dm-crypt-luks}. Velikosti v~tabulce jsou uváděny v~512 B sektorech.
+Jak může vypadat jednoduché šifrované zařízení vytvořené pomocí Device Mapperu a LUKS/dm-crypt je vidět v~tabulce \ref{tab:dm-crypt-luks}. Jedná se přímo o výpis interní struktury Device Mapperu, takzvané \emph{DM tabulky}, která obsahuje informace o nastaveném mapování na existující zařízení a nastavení použitého targetu. Velikosti v~tabulce jsou uváděny v~512 B sektorech.
 
 \tab{Mapa dm-crypt zařízení v~Linuxu}{tab:dm-crypt-luks}{0.65}{|l|l|l|l|l|l|l|l|l|}{
   \hline
@@ -736,7 +736,7 @@ Crypto target podporuje všechny šifry, které jsou podporovány v~linuxovém k
 
 \n{2}{Device Mapper a BitLocker}
 
-Z~výše uvedeného popisu device mapperu, crypto targetu a stručného představení technologie LUKS, vyplývá, že BitLocker a LUKS/dm-crypt jsou velice podobné technologie. Obě mají na disku metadata v~otevřené podobě, která obsahují zašifrovaný klíč použitý k~šifrování dat uložených na disku. Ve výchozím nastavení dokonce BitLocker i LUKS/dm-crypt používají stejnou šifrovací funkci --- AES-XTS a stejný inicializační vektor --- číslo sektoru. Jsou zde rozdíly ve způsobu uložení dat a metadat na disku a práci s~klíči, ale z~pohledu Device Mapperu stačí znát (de)šifrovací klíč pro data a mapu šifrovaných dat na disku a může s~BitLockerem pracovat stejně jako s~jakýmikoli jinými šifrovanými daty.
+Z~výše uvedeného popisu Device Mapperu, crypto targetu a stručného představení technologie LUKS, vyplývá, že BitLocker a LUKS/dm-crypt jsou velice podobné technologie. Obě mají na disku metadata v~otevřené podobě, která obsahují zašifrovaný klíč použitý k~šifrování dat uložených na disku. Ve výchozím nastavení dokonce BitLocker i LUKS/dm-crypt používají stejnou šifrovací funkci --- AES v XTS módu a stejný inicializační vektor --- číslo sektoru. Jsou zde rozdíly ve způsobu uložení dat a metadat na disku a práci s~klíči, ale z~pohledu Device Mapperu stačí znát (de)šifrovací klíč pro data a mapu šifrovaných dat na disku a může s~BitLockerem pracovat stejně jako s~jakýmikoli jinými šifrovanými daty.
 
 Způsob, jak jsou v~BitLocker metadatech uloženy klíče je popsán v~části \ref{sec:keys}. Pro použití s~Device Mapperem tedy stačí pouze získat z~FVE metadat FVEK a použít ho pro vytvoření dm-crypt zařízení.
 
@@ -766,7 +766,7 @@ Kompletní Device Mapper tabulka pro testovací 100 MiB zařízení je uvedena v
 
 Můžeme zde vidět strukturu otevřeného zařízení, kdy prvních 16 sektorů zabírá crypt target, který mapuje data původně uložená na offsetu 68904 sektorů --- to je NTFS hlavička, která je v~původním BitLocker zařízení uložena za prvními metadaty --- tomu odpovídá i nastavení IV offsetu, protože inicializační vektor v~BitLockeru je číslo sektoru, na kterém jsou data skutečně uložena, nikoli číslo sektoru, na kterém se data nachází na otevřeném zařízení. Následuje první část dat, opět mapovaná pomocí crypt targetu. Za ní jsou dvě dm-zero zařízení, která nahrazují první kopii FVE metadat a již zmíněnou NTFS hlavičku přesunutou na začátek zařízení. Zbývají již jen dvě kopie FVE metadat, opět nahrazené pomocí dm-zero, a tři datové oblasti mapované pomocí dm-crypt.
 
-\n{1}{Implementace nástroje pro práci BitLocker metadaty}\label{sec:implementace-nastroj}
+\n{1}{Implementace nástroje pro práci s~BitLocker metadaty}\label{sec:implementace-nastroj}
 
 Z~výše popsaného Device Mapper targetu dm-crypt a jeho možností vyplývá, že pro správnou podporu BitLockeru v~linuxovém prostředí stačí dodat klíč, šifru a správné umístění šifrovaných dat a výsledkem bude blokové zařízení, které lze používat pro čtení i pro zápis stejně, jako jakékoli jiné nešifrované blokové zařízení.
 
@@ -792,7 +792,7 @@ Součástí nástroje jsou následné moduly, které lze využívat i samostatn�
 
 Rozčlenění do jednotlivých tříd s~definovaným rozhraním umožňuje snadné budoucí rozšíření pro starší verze BitLocker metadat, které jsou často jen mírně odlišné (více informací o~rozdílech ve starších verzích BitLockeru v~části \ref{sec:old-versions}) a bude tedy možné při jejich implementaci znovu použít většinu kódu.
 
-Na obrázku \ref{fig:uml-classes} je k~dispozici diagram tříd komponent implementovaného nástroje bitlockersetup. V~přiložených zdrojových kódech je také k~dispozici kompletní automaticky generovaná API dokumentace.
+Na obrázku \ref{fig:uml-classes} je k~dispozici diagram tříd implementovaného nástroje bitlockersetup. V~přiložených zdrojových kódech je také k~dispozici kompletní automaticky generovaná API dokumentace.
 
 \obr{Diagram tříd vytvořeného nástroje bitlockersetup}{fig:uml-classes}{0.90}{img/class-diagram.png}
 
@@ -902,7 +902,7 @@ E: ID_FS_USAGE=crypto
 		\label{fig:udev-bitlocker}
 \end{figure}
 
-UDev (a díky němu i UDisks) tak má vše potřebné pro identifikaci nově připojeného zařízení jako BitLocker zařízení. UDisks tuto identifikaci z~UDevu převezme a správně nastaví hodnoty property \texttt{IdType} a \texttt{IdUsage}, jak je vidět na obrázku \ref{fig:udisks-bitlocker-without-support}.
+UDev (a díky němu i UDisks) tak má vše potřebné pro identifikaci nově připojeného zařízení jako BitLocker zařízení. UDisks tuto identifikaci z~UDevu převezme a správně nastaví hodnoty \texttt{IdType} a \texttt{IdUsage}, jak je vidět na obrázku \ref{fig:udisks-bitlocker-without-support}.
 
 \begin{figure}[h]
 		\centering
@@ -936,7 +936,7 @@ UDev (a díky němu i UDisks) tak má vše potřebné pro identifikaci nově př
 
 V~UDisks však stále chybí některé informace o~BitLocker zařízení jako například UUID, které UDev nezná, protože jeho získání z~BitLocker hlavičky knihovna libblkid nepodporuje.
 
-UDisks také pro toto zařízení nevytvoří interface \emph{org.freedesktop.UDisks2.Encrypted}, které normálně poskytuje další funkce pro práci se šifrovanými zařízeními. To je logické, protože i když je zařízení identifikováno jako šifrované, UDisks s~ním neumí nijak pracovat. O~přidání této funkcionality a zmíněného interface pro BitLocker zařízení pojednává část \ref{sec:udisks-implementation}.
+UDisks také pro toto zařízení nevytvoří rozhraní \emph{org.freedesktop.UDisks2.Encrypted}, které normálně poskytuje další funkce pro práci se šifrovanými zařízeními. To je logické, protože i když je zařízení identifikováno jako šifrované, UDisks s~ním neumí nijak pracovat. O~přidání této funkcionality a zmíněného rozhraní pro BitLocker zařízení pojednává část \ref{sec:udisks-implementation}.
 
 \n{3}{Knihovna libblockdev}\label{sec:libblockdev}
 
@@ -974,7 +974,7 @@ Patche pro knihovnu libblockdev implementující výše zmíněné funkce jsou s
 
 \n{3}{Implementace v~UDisks}\label{sec:udisks-implementation}
 
-V~samotném UDisks je nejprve třeba vyřešit identifikaci BitLocker zařízení jako podporovaného šifrovaného zařízení, jak je popsáno v~části \ref{sec:bitlocker-identification}. K~tomu slouží nově přidaná funkce \texttt{udisks$\_$linux$\_$block$\_$is$\_$bitlocker}, která využívá informace z~UDev databáze pro identifikaci blokového zařízení jako BitLocker. S~pomocí této funkce pak stačí UDisks již jen upravit tak, aby BitLocker zařízení přidal DBus interface \emph{org.freedesktop.org.UDisks2.Encrypted} a zpřístupnil tak obecné property a funkce pro šifrovaná zařízení. Které bude třeba následně upravit tak, aby správně podporovaly i BitLocker.
+V~samotném UDisks je nejprve třeba vyřešit identifikaci BitLocker zařízení jako podporovaného šifrovaného zařízení, jak je popsáno v~části \ref{sec:bitlocker-identification}. K~tomu slouží nově přidaná funkce \texttt{udisks$\_$linux$\_$block$\_$is$\_$bitlocker}, která využívá informace z~UDev databáze pro identifikaci blokového zařízení jako BitLocker. S~pomocí této funkce pak stačí UDisks již jen upravit tak, aby BitLocker zařízení přidal DBus rozhraní \emph{org.freedesktop.org.UDisks2.Encrypted} a zpřístupnil tak obecné proměnné a funkce pro šifrovaná zařízení. Které bude třeba následně upravit tak, aby správně podporovaly i BitLocker.
 
 Díky tomu, že UDisks podporuje kromě technologie LUKS/dm-crypt také zařízení šifrovaná pomocí TrueCrypt/VeraCrypt, je kód je již připraven na podporu více různých technologií, kdy jsou k~dispozici obecné implementace funkcí sloužící k~obsluze API volání pro odemykání a uzamykání šifrovaných zařízení a pro přidání podpory pro nové technologie stačí vytvořit pomocné funkce s~minimálními úpravami v~implementaci veřejných funkcí.
 
@@ -982,7 +982,7 @@ Pro BitLocker takto byly vytvořeny pomocné funkce \texttt{bitlocker$\_$open$\_
 
 Díky tomu, že všechny součásti UDisks --- tedy DBus démon, knihovna i konzolový nástroj --- jsou generovány ze stejného kódu, není potřeba upravovat žádné další části kódu, kromě výše zmíněných, a podpora pro odemykání BitLocker zařízení bude automaticky propagována i do nástroje \texttt{udisksctl}.
 
-Na obrázku \ref{fig:udisks-bitlocker-with-support} je viditelné BitLocker zařízení z~pohledu UDisks po aplikaci výše zmíněných změn. Nově je přidáno \emph{org.freedesktop.org.UDisks2.Encrypted} interface po\-sky\-tu\-jí\-cí další informace o~zařízení (funkce zde nejsou viditelné, jedná se pouze o~informační výpis z~nástroje \texttt{udisksctl}).
+Na obrázku \ref{fig:udisks-bitlocker-with-support} je viditelné BitLocker zařízení z~pohledu UDisks po aplikaci výše zmíněných změn. Nově je přidáno rozhraní \emph{org.freedesktop.org.UDisks2.Encrypted} po\-sky\-tu\-jí\-cí další informace o~zařízení (funkce zde nejsou viditelné, jedná se pouze o~informační výpis z~nástroje \texttt{udisksctl}).
 
 \begin{figure}[h]
 		\centering
@@ -1000,7 +1000,7 @@ Na obrázku \ref{fig:udisks-bitlocker-with-support} je viditelné BitLocker zař
     Id:
     IdLabel:
     $\textcolor{blue}{IdType:}$                     $\textcolor{blue}{BitLocker}$
-    $\textcolor{blue}{IdUUID:}$                     $\textcolor{blue}{1f8bf933-8323-4c97-...}$
+    $\textcolor{red}{IdUUID:}$                     $\textcolor{red}{1f8bf933-8323-4c97-...}$
     $\textcolor{blue}{IdUsage:}$                    $\textcolor{blue}{crypto}$
   $\textcolor{red}{org.freedesktop.UDisks2.Encrypted:}$
     ChildConfiguration:         []
@@ -1018,7 +1018,7 @@ Patche pro nástroj UDisks implementující výše zmíněné funkce jsou souč�
 
 \n{2}{Podpora v~grafických prostředích}
 
-Jak již bylo zmíněno výše (\ref{sec:udisks}), jednotlivá grafická rozhraní spoléhají při identifikaci šifrovaných zařízení na UDisks --- pokud má dané zařízení typ \emph{crypto} a má k~dispozici interface \emph{org.freedesktop.org.UDisks2.Encrypted}, označí jej jako šifrované a nabídnou jeho odemčení. Po instalaci UDisks s~aplikovanými změnami zmíněnými výše jsou tak BitLocker zařízení viditelná v~grafickém prostředí jako šifrovaná a při pokusu o~jejich připojení bude uživatel dotázán na heslo po jehož zadání mu bude zpřístupněno nově vytvořené otevřené zařízení.
+Jak již bylo zmíněno výše (\ref{sec:udisks}), jednotlivá grafická rozhraní spoléhají při identifikaci šifrovaných zařízení na UDisks --- pokud má dané zařízení typ \emph{crypto} a má k~dispozici rozhraní \emph{org.freedesktop.org.UDisks2.Encrypted}, označí jej jako šifrované a nabídnou jeho odemčení. Po instalaci UDisks s~aplikovanými změnami zmíněnými výše jsou tak BitLocker zařízení viditelná v~grafickém prostředí jako šifrovaná a při pokusu o~jejich připojení bude uživatel dotázán na heslo po jehož zadání mu bude zpřístupněno nově vytvořené otevřené zařízení.
 
 Na obrázku \ref{fig:bitlocker-xfce} je ukázka tohoto chování v~prostředí Xfce.
 
