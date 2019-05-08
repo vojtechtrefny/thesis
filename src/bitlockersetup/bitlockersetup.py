@@ -131,8 +131,13 @@ def process_commands(args):
 
     # dump
     if args.mode == Modes.DUMP:
-        fve = _parse_metadata(args.device)
+        header = BitLockerHeader(args.device)
+        fve = FVE(args.device, header)
         print(fve)
+
+        if args.verbose:
+            header.debug_print()
+            fve.debug_print()
 
     # uuid
     if args.mode == Modes.UUID:

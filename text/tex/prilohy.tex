@@ -5,7 +5,52 @@
 \listofappendices
 
 \priloha{Hlavička a FVE metadata BitLocker zařízení}\label{attachment:metadata}
-Obsah přílohy
+
+Kompletní struktura FVE hlaviček. Uvedené hodnoty odpovídají testovacímu 100 MiB zařízení, které bylo vytvořeno ve Windows 10. Velikosti a offsety jsou uváděny v bajtech, pokud není uvedeno jinak. Popisy jednotlivých součástí hlaviček jsou převzaty z \cite{Metz2011}.
+
+\section*{Hlavička FVE bloku}
+
+\begin{table}[h]
+\begin{center}
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+  \hline
+   \textbf{offset} & \textbf{velikost} & \textbf{hodnota} & \textbf{popis} \\ \hline
+   0 & 8 & -FVE-FS- & BitLocker signatura \\ \hline
+   8 & 2 & 55 & velikost \\ \hline
+   10 & 2 & 2 & verze \\ \hline
+   12 & 2 & 4 & neznámé \\ \hline
+   14 & 2 & 4 & neznámé \\ \hline
+   16 & 8 & 104857600 & velikost zařízení v bajtech \\ \hline
+   24 & 4 & 0 & neznámé \\ \hline
+   28 & 4 & 16 & velikost hlavičky otevřeného zařízení \\ \hline
+   32 & 8 & 35213312 & offset první kopie FVE metadat \\ \hline
+   40 & 8 & 46256128 & offset druhé kopie FVE metadat \\ \hline
+   48 & 8 & 57909248 & offset třetí kopie FVE metadat \\ \hline
+   56 & 8 & 35278848 & offset hlavičky otevřeného zařízení \\ \hline
+\end{tabular}
+\end{center}
+\end{table}
+
+\section*{FVE hlavička}
+
+\begin{table}[h]
+\begin{center}
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+  \hline
+   \textbf{offset} & \textbf{velikost} & \textbf{hodnota} & \textbf{popis} \\ \hline
+   0 & 4 & 804 & velikost metadat \\ \hline
+   4 & 4 & 1 & verze \\ \hline
+   8 & 4 & 48 & velikost FVE hlavičky \\ \hline
+   12 & 4 & 804 & velikost metadat -- kopie \\ \hline
+   16 & 16 & 1f8bf933-...-a67625ac8f40 & GUID \\ \hline
+   32 & 4 & 10 & následující hodnota nonce \\ \hline
+   36 & 4 & 0x8004 & šifrovací metoda (AES-XTS) \\ \hline
+   40 & 8 & 131936586222654059 & čas vytvoření (FILETIME) \\ \hline
+\end{tabular}
+\end{center}
+\end{table}
 
 \priloha{Manuálová stránka bitlockersetup}\label{attachment:manpage}
 
