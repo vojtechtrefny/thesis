@@ -48,6 +48,7 @@
 \usepackage{todonotes}
 \usepackage{listings}
 \usepackage{dirtree}
+\usepackage{pdfpages}
 \usepackage{bytefield}
 \newcommand\bithead[2]{\bitbox[]{#1}{\scriptsize\bfseries #2}}
 
@@ -394,11 +395,11 @@
 	\clearpage
 	\thispagestyle{empty}
 	\voffset=\valueVOffset\evensidemargin=\valueSideMargin\oddsidemargin=\valueSideMargin\headsep=\valueHeadSep\headheight=\valueHeadHeight\setlength{\parskip}{3pt}\textheight=\valueTextHeight\textwidth=\valueTextWidth
-	*** Nascanované zadání, strana 1 ***
+	\includepdf[pages={1}]{img/zadani.pdf}
 	
 	\clearpage
 	\thispagestyle{empty}
-	*** Nascanované zadání, strana 2 ***
+	\includepdf[pages={2}]{img/zadani.pdf}
 }
 
 % Nastaveni zobrazovani zahlavi dokumentu
