@@ -144,6 +144,31 @@ Následně se počet iterací (\texttt{count}) a poslední spočtená hodnota ha
 
 Dalším krokem je již samotná iterace, kdy se spočte SHA256 hash celé struktury a výsledek se uloží do proměnné \texttt{last$\_$sha256}. Zároveň se zvýší čítač iterací o~jedna a vše se opakuje celkem 1048576 (0x100000) krát. Poslední hodnota uložená v~\texttt{last$\_$sha256} po provedení všech iterací, je pak hledaný odvozený klíč.\cite{Metz2011,Agostini2019}
 
+\begin{table}[h]
+\catcode`\-=12
+\captionsetup{width=0.65\linewidth}
+\caption{Srovnání funkcí pro získání klíče z~hesla. Není-li uvedeno jinak jsou hodnoty pro PBKDF2 převzaty z~\cite{Kaliski2000}, pro Argon2 z~\cite{Biryukov2017} a pro BitLocker z~\cite{Metz2011,Agostini2019}.}
+\label{tab:kdf-compare}
+\begin{center}
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+  \hline
+    & PBKDF2 & BitLocker & Argon2 \\ \hline
+vznik & 2000 & 2006 & 2015 \\ \hline
+standardizace & ano & ne & ne (probíhá\cite{IETFArgon}) \\ \hline
+hashovací funkce & HMAC-SHA1/2 & SHA256 & Blake2 \\ \hline
+počet iterací & volitelný & pevný ($2^{20}$) & volitelný \\ \hline
+počet vláken & 1 & 1 & volitelný (až $2^{24}$) \\ \hline
+paměťová náročnost & ne & ne & ano \\ \hline
+dostupná implementace & ano & ne & ano \\ \hline
+\end{tabular}
+\end{center}
+\end{table}
+
+V~tabulce \ref{tab:kdf-compare} je k~dispozici srovnání této funkce s~funkcemi PBKDF2 a Argon2. Argon2 je nová funkce sloužící pro odvození klíče z~hesla, která kromě výpočetního výkonu významně využívá i paměť a znemožňuje tak pokusy o~získání klíče hrubou silou na grafických kartách.\cite{Biryukov2017} Vůči těmto útokům jsou funkce, jako zde popsaná varianta odvození pro BitLocker, velmi málo odolné --- \cite{Agostini2019} uvádí pro BitLocker zařízení více jak 3000 vyzkoušených hesel za sekundu s~použitím GPU Tesla V100.
+
+Ze srovnání vychází nejlépe funkce Argon2, je však logické, že vzhledem k~datu jejího vzniku, nemohla být v~BitLockeru použita (je ale například použita v~LUKS verze 2\cite{Broz20181}). Ale i funkce PBKDF2 vychází ze srovnání lépe, díky své standardizace, volitelnému počtu iterací a obecně dostupné implementaci.
+
 \n{3}{Inicializační vektory}\label{sec:iv}
 
 Ve výše uvedených popisech šifrovacích funkcí je několikrát zmíněn inicializační vektor. Ten se používá u~blokových šifer, které pro zvýšení bezpečnosti před šifrováním XORují otevřený text s~předchozím šifrovaným blokem. Inicializační vektor v~tomto případě nahrazuje nultý šifrovaný blok pro první blok otevřeného textu.
@@ -722,7 +747,7 @@ Z~pohledu nástrojů pracujících s~mapovaným zařízením, se tak jedná o~no
 
 Crypt target se používá primárně pro šifrování disku v~linuxových systémech společně s~technologií LUKS. LUKS se stará o~správu klíčů a definuje také diskový formát pro ukládání metadat. Podobně jako u~BitLockeru je i u~LUKSu klíč pro (de)šifrování dat uložen přímo na disku v~metadatech chráněný heslem, případně dalšími způsoby. Crypt target má tedy v~tomto případě na starosti ukládání dat a jejich dešifrování při čtení a šifrování při zápisu a LUKS slouží pro zjednodušení práce se šifrovaným zařízením, aby si uživatel nemusel pamatovat klíč a další informace nutné pro správné nastavení šifrování.\cite{Fruhwirth2005}
 
-Jak může vypadat jednoduché šifrované zařízení vytvořené pomocí Device Mapperu a LUKS/dm-crypt je vidět v~tabulce \ref{tab:dm-crypt-luks}. Jedná se přímo o výpis interní struktury Device Mapperu, takzvané \emph{DM tabulky}, která obsahuje informace o nastaveném mapování na existující zařízení a nastavení použitého targetu. Velikosti v~tabulce jsou uváděny v~512 B sektorech.
+Jak může vypadat jednoduché šifrované zařízení vytvořené pomocí Device Mapperu a LUKS/dm-crypt je vidět v~tabulce \ref{tab:dm-crypt-luks}. Jedná se přímo o~výpis interní struktury Device Mapperu, takzvané \emph{DM tabulky}, která obsahuje informace o~nastaveném mapování na existující zařízení a nastavení použitého targetu. Velikosti v~tabulce jsou uváděny v~512 B sektorech.
 
 \tab{Mapa dm-crypt zařízení v~Linuxu}{tab:dm-crypt-luks}{0.65}{|l|l|l|l|l|l|l|l|l|}{
   \hline
@@ -736,7 +761,7 @@ Crypto target podporuje všechny šifry, které jsou podporovány v~linuxovém k
 
 \n{2}{Device Mapper a BitLocker}
 
-Z~výše uvedeného popisu Device Mapperu, crypto targetu a stručného představení technologie LUKS, vyplývá, že BitLocker a LUKS/dm-crypt jsou velice podobné technologie. Obě mají na disku metadata v~otevřené podobě, která obsahují zašifrovaný klíč použitý k~šifrování dat uložených na disku. Ve výchozím nastavení dokonce BitLocker i LUKS/dm-crypt používají stejnou šifrovací funkci --- AES v XTS módu a stejný inicializační vektor --- číslo sektoru. Jsou zde rozdíly ve způsobu uložení dat a metadat na disku a práci s~klíči, ale z~pohledu Device Mapperu stačí znát (de)šifrovací klíč pro data a mapu šifrovaných dat na disku a může s~BitLockerem pracovat stejně jako s~jakýmikoli jinými šifrovanými daty.
+Z~výše uvedeného popisu Device Mapperu, crypto targetu a stručného představení technologie LUKS, vyplývá, že BitLocker a LUKS/dm-crypt jsou velice podobné technologie. Obě mají na disku metadata v~otevřené podobě, která obsahují zašifrovaný klíč použitý k~šifrování dat uložených na disku. Ve výchozím nastavení dokonce BitLocker i LUKS/dm-crypt používají stejnou šifrovací funkci --- AES v~XTS módu a stejný inicializační vektor --- číslo sektoru. Jsou zde rozdíly ve způsobu uložení dat a metadat na disku a práci s~klíči, ale z~pohledu Device Mapperu stačí znát (de)šifrovací klíč pro data a mapu šifrovaných dat na disku a může s~BitLockerem pracovat stejně jako s~jakýmikoli jinými šifrovanými daty.
 
 Způsob, jak jsou v~BitLocker metadatech uloženy klíče je popsán v~části \ref{sec:keys}. Pro použití s~Device Mapperem tedy stačí pouze získat z~FVE metadat FVEK a použít ho pro vytvoření dm-crypt zařízení.
 
