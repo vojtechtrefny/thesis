@@ -109,7 +109,7 @@ Stejně jako AES-CBC zmíněný v~části \ref{sec:aes-cbc}, ani AES-XTS neobsah
 
 \n{3}{AES-CCM}
 
-Poslední z~šifrovacích funkcí použitých v~BitLockeru je AES s~CCM módem, která je použita pouze v~rámci metadat na ochranu uložených klíčů. AES-CCM představuje zástupce šifer používaných pro takzvané autentizované šifrování, které zajišťují jak integritu, tak důvěrnost dat. Toho je typicky docíleno spojením šifrování a MAC.\cite{ISO2009}
+Poslední z~šifrovacích funkcí použitých v~BitLockeru je AES s~CCM módem, která je použita pouze v~rámci metadat na ochranu uložených klíčů. AES-CCM představuje zástupce šifer používaných pro takzvané autentizované šifrování, které zajišťuje jak integritu, tak důvěrnost dat. Toho je typicky docíleno spojením šifrování a MAC.\cite{ISO2009}
 
 CCM mód představuje kombinaci dvou existujících technologií --- CTR módu, který zajišťuje samotné šifrování a CBC-MAC, který zajišťuje autentizaci, přičemž pro obě části šifry se používá stejný klíč.
 
@@ -117,11 +117,11 @@ Postup při dešifrování a verifikaci, který nás při práci s~BitLocker za�
 
 Ačkoli je CCM mód obvykle používán pro zajištění, že s~šifrovanými daty nebylo nijak manipulováno (jako například v~IPsec\cite{Housley2005}), v~BitLockeru lze verifikační krok využít také k~rychlému zjištění, zda bylo uživatelem zadáno správné heslo, protože v~případě použití nesprávného hesla MAC autentizace také selže a není tak třeba složitě zjišťovat, zda dešifrovaný heslem chráněný klíč je ve skutečnosti správný či nikoli.
 
-AES-CCM bylo kvůli zajištění autentizace také zvažováno pro šifrování samotných uložených dat. Problémem v~tomto případě je ale fakt, že šifrovaná dat nemohou být větší, než data otevřená --- potřebný MAC tag není možné uložit společně s~šifrovaným sektorem a ukládání MAC tagu do jiného sektoru, například společně s~MAC tagy pro další sektory, porušuje atomicitu zápisu sektoru a v~případě poškození sektoru s~MAC tagy bude ztraceno více sektorů s~daty, která by pak nebylo možné kvůli chybějícím MAC tagům při dešifrování ověřit.\cite{Ferguson2006}
+AES-CCM bylo kvůli zajištění autentizace také zvažováno pro šifrování samotných uložených dat. Problémem v~tomto případě je ale fakt, že šifrovaná dat nemohou být větší, než data otevřená --- potřebný MAC tag tak není možné uložit společně se šifrovaným sektorem a ukládání MAC tagu do jiného sektoru, například společně s~MAC tagy pro další sektory, porušuje atomicitu zápisu sektoru a v~případě poškození sektoru s~MAC tagy by bylo ztraceno více sektorů s~daty, která by pak nebylo možné kvůli chybějícím MAC tagům při dešifrování ověřit.\cite{Ferguson2006}
 
 \n{3}{Odvození klíče z~hesla}\label{sec:kdf}
 
-Jedním z~problémů, které je třeba řešit v~případech, kdy je v~kryptografii použito heslo zadávané uživatelem, je převedení tohoto hesla na klíč použitelný pro vybranou šifrovací funkci, v~našem případě AES-CCM, která v~BitLockeru slouží k~ochraně na disku uložených klíčů. Obecně se v~těchto případech používají speciální funkce pro odvození klíče (KDF, Key Derivation Function), které z~hesla odvodí klíč o~požadované délce. Obvyklým postupem je zkombinování hesla s~unikátní solí za použití hashovací funkce, kdy přidání soli ztěžuje možnost vytvoření předpočítaných tabulek hesel. Dalším používaným stupněm ochrany je pak přidání určitého počtu iterací, které je třeba pro odvození klíče provést. Tím se celé odvození klíče zpomaluje a teoreticky se tak zvyšuje odolnost proti útokům hrubou silou.\cite{Kaliski2000}
+Jedním z~problémů, které je třeba řešit v~případech, kdy je v~kryptografii použito heslo zadávané uživatelem, je převedení tohoto hesla na klíč použitelný pro vybranou šifrovací funkci, v~našem případě AES-CCM, která v~BitLockeru slouží k~ochraně na disku uložených klíčů. Obecně se v~těchto případech používají speciální funkce pro odvození klíče (KDF, z~anglického \emph{Key Derivation Function}), které z~hesla odvodí klíč o~požadované délce. Obvyklým postupem je zkombinování hesla s~unikátní solí za použití hashovací funkce, kdy přidání soli ztěžuje možnost vytvoření předpočítaných tabulek hesel. Dalším používaným stupněm ochrany je pak přidání určitého počtu iterací, které je třeba pro odvození klíče provést. Tím se celé odvození klíče zpomaluje a teoreticky se tak zvyšuje odolnost proti útokům hrubou silou.\cite{Kaliski2000}
 
 Ačkoli existují standardizované funkce pro odvození klíče z~hesla, jako například PBKDF2 definovaná v~\cite{Kaliski2000}, Microsoft pro BitLocker zavedl vlastní funkci postavenou nad hashovací funkcí SHA256\cite{FIPS180-4} s~pevným počtem iterací.
 
@@ -153,8 +153,8 @@ Dalším krokem je již samotná iterace, kdy se spočte SHA256 hash celé struk
 \centering
 \begin{tabular}{|c|c|c|c|c|}
   \hline
-    & PBKDF2 & BitLocker & Argon2 \\ \hline
-vznik & 2000 & 2006 & 2015 \\ \hline
+    & \textbf{PBKDF2} & \textbf{BitLocker} & \textbf{Argon2} \\ \hline
+rok vzniku & 2000 & 2006 & 2015 \\ \hline
 standardizace & ano & ne & ne (probíhá\cite{IETFArgon}) \\ \hline
 hashovací funkce & HMAC-SHA1/2 & SHA256 & Blake2 \\ \hline
 počet iterací & volitelný & pevný ($2^{20}$) & volitelný \\ \hline
@@ -167,7 +167,7 @@ dostupná implementace & ano & ne & ano \\ \hline
 
 V~tabulce \ref{tab:kdf-compare} je k~dispozici srovnání této funkce s~funkcemi PBKDF2 a Argon2. Argon2 je nová funkce sloužící pro odvození klíče z~hesla, která kromě výpočetního výkonu významně využívá i paměť a znemožňuje tak pokusy o~získání klíče hrubou silou na grafických kartách.\cite{Biryukov2017} Vůči těmto útokům jsou funkce, jako zde popsaná varianta odvození pro BitLocker, velmi málo odolné --- \cite{Agostini2019} uvádí pro BitLocker zařízení více jak 3000 vyzkoušených hesel za sekundu s~použitím GPU Tesla V100.
 
-Ze srovnání vychází nejlépe funkce Argon2, je však logické, že vzhledem k~datu jejího vzniku, nemohla být v~BitLockeru použita (je ale například použita v~LUKS verze 2\cite{Broz20181}). Ale i funkce PBKDF2 vychází ze srovnání lépe, díky své standardizace, volitelnému počtu iterací a obecně dostupné implementaci.
+Ze srovnání vychází nejlépe funkce Argon2, je však logické, že vzhledem k~datu jejího vzniku, nemohla být v~BitLockeru použita (je ale například použita v~LUKS verze 2\cite{Broz20181}). Ale i funkce PBKDF2 vychází ze srovnání lépe, díky své standardizaci, volitelnému počtu iterací a obecně dostupné implementaci.
 
 \n{3}{Inicializační vektory}\label{sec:iv}
 
@@ -178,7 +178,7 @@ Inicializační vektor je možné definovat různými způsoby jako je napříkl
 V~BitLockeru jsou použity pro výše zmíněné šifry následující inicializační vektory:
 \begin{itemize}
 	\item u~AES-CBC číslo sektoru zašifrované pomocí AES-ECB s~klíčem použitým pro šifrování dat,
-	\item u~AES-XTS pouze jednoduché číslo sektoru uložené jako 128bit little indian a
+	\item u~AES-XTS pouze jednoduché číslo sektoru uložené jako 128bit little endian a
 	\item u~AES-CCM nonce uložené společně s~klíčem, který je pomocí AES-CCM zašifrován. \cite{Metz2011}
 \end{itemize}
 
@@ -230,7 +230,7 @@ Popis struktury NTFS hlavičky je převzat z~\cite{Carrier2005}, popis struktury
 \centering
 \begin{tabular}{|c|c|c|c|c|}
   \hline
-   offset & velikost & BitLocker & NTFS \\ \hline
+   \textbf{offset} & \textbf{velikost} & \textbf{BitLocker} & \textbf{NTFS} \\ \hline
    0 & 3 & \multicolumn{2}{c|}{boot kód} \\ \hline
    3 & 8 & \multicolumn{2}{c|}{OEM název (signatura)} \\ \hline
    11 & 2 & \multicolumn{2}{c|}{počet bajtů na sektor} \\ \hline
@@ -321,6 +321,7 @@ Důležité položky v~obou hlavičkách, jejich velikosti a offsety (vztažené
    48 & 8 & offset třetí kopie FVE metadat  \\ \hline
    \multicolumn{3}{}{} \\ \hline
    \multicolumn{3}{|c|}{\textbf{FVE hlavička}} \\ \hline
+   offset & velikost & popis  \\ \hline
    0 & 4 & velikost metadat (včetně záznamů) \\ \hline
    16 & 16 & GUID \\ \hline
    36 & 4 & šifrovací algoritmus \\ \hline
@@ -339,7 +340,7 @@ Struktura FVE je relativně jednoduchá a je popsaná v~tabulce \ref{tab:fve-ent
 
 \tab{Struktura FVE záznamu}{tab:fve-entry}{0.65}{|l|l|l|}{
   \hline
-   offset & velikost & popis  \\ \hline
+   \textbf{offset} & \textbf{velikost} & \textbf{popis}  \\ \hline
    0 & 2 & velikost záznamu \\ \hline
    2 & 2 & typ záznamu \\ \hline
    4 & 2 & typ hodnoty záznamu \\ \hline
@@ -347,7 +348,7 @@ Struktura FVE je relativně jednoduchá a je popsaná v~tabulce \ref{tab:fve-ent
    8 &  & data  \\ \hline
 }
 
-Typ a hodnota označují, co je v~daném záznamu uloženo. Známé typy a hodnoty jsou popsány v~tabulce \ref{tab:fve-entry-types}. U~typů se typicky jedná buď o~klíč (FVEK, VMK), nebo obecnou vlastnosti (\emph{property}). Hodnota pak dále specifikuje, jak je daný typ uložen (zašifrovaný klíč, textový řetězec).
+Typ a hodnota označují, co je v~daném záznamu uloženo. Známé typy a hodnoty jsou popsány v~tabulce \ref{tab:fve-entry-types}. U~typů se typicky jedná buď o~klíč (FVEK, VMK), nebo obecnou vlastnost (\emph{property}). Hodnota pak dále specifikuje, jak je daný typ uložen (zašifrovaný klíč, textový řetězec).
 
 Způsob uložení dat záleží na tom, jaká konkrétní data jsou v~záznamu uložena. U~\uv{jednoduchých} záznamů, jako je například popisek, je v~datech uložen textový řetězec uložený v~kódování UTF-16, u~\uv{složitějších} záznamů, jako jsou například klíče, mají data vlastní strukturu včetně dalších záznamů.
 
@@ -407,7 +408,7 @@ FVEK je v~metadatech uložen v~záznamu typu \emph{FVEK} s~hodnotou \emph{AES-CC
 
 \tab{Způsob uložení FVEK v~metadatech}{tab:fvek-data}{0.65}{|l|l|l|}{
   \hline
-   offset & velikost & popis  \\ \hline
+   \textbf{offset} & \textbf{velikost} & \textbf{popis}  \\ \hline
    0 & 8 & datum a čas vytvoření (jako FILETIME) \\ \hline
    8 & 4 & nonce \\ \hline
    12 & 16 & MAC tag \\ \hline
@@ -421,7 +422,7 @@ Samotná zašifrovaná část klíče obsahuje kromě samotného klíče také d
 
 \tab{Obsah FVEK po dešifrování}{tab:fvek-data-decrypted}{0.65}{|l|l|l|}{
   \hline
-   offset & velikost & popis  \\ \hline
+   \textbf{offset} & \textbf{velikost} & \textbf{popis}  \\ \hline
    0 & 4 & velikost \\ \hline
    4 & 4 & verze (1)\footnotemark \\ \hline
    8 & 4 & šifrovací metoda \\ \hline
@@ -436,7 +437,7 @@ Na obrázku \ref{fig:fvek-decrypted} je pak vidět příklad dešifrovaného FVE
 \begin{lstlisting}[frame=none, escapechar=$, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true]
 00000000  $\textcolor{red}{2c 00 00 00}$ $\textcolor{green}{01 00 00 00}$  $\textcolor{orange}{04 80 00 00}$ $\textcolor{blue}{a4 d0 11 64}$ |,..............d|
 00000010  $\textcolor{blue}{0c a0 df ec b2 4d a2 39}$  $\textcolor{blue}{b1 4e 4a b7 62 56 f2 e3}$ |.....M.9.NJ.bV..|
-00000020  $\textcolor{blue}{b2 27 54 40 91 21 0e 98}$  $\textcolor{blue}{aa 84 5f 52}$             |.'T@.!...._R|
+00000020  $\textcolor{blue}{b2 27 54 40 91 21 0e 98}$  $\textcolor{blue}{aa 84 5f 52}$             |.'T@.!...._R    |
 \end{lstlisting}
 		\caption{Dešifrovaný FVEK}
 		\label{fig:fvek-decrypted}
@@ -454,7 +455,7 @@ V~odstavci výše je několikrát zmíněno \emph{heslo}, ale VMK může být ch
 
 \tab{Možnosti ochrany VMK}{tab:vmk-protectors}{0.65}{|l|l|}{
   \hline
-   hodnota & popis  \\ \hline
+   \textbf{hodnota} & \textbf{popis}  \\ \hline
    0 & neznámý/jiný \\ \hline
    1 & TPM \\ \hline
    2 & externí klíč \\ \hline
@@ -478,7 +479,7 @@ První část VMK struktury je v~celku běžná --- obsahuje identifikátor klí
 
 \tab{Struktura VMK}{tab:vmk-data}{0.65}{|l|l|l|}{
   \hline
-   offset & velikost & popis  \\ \hline
+   \textbf{offset} & \textbf{velikost} & \textbf{popis}  \\ \hline
    0 & 16 & GUID \\ \hline
    16 & 9 & datum a čas vytvoření \\ \hline
    24 & 2 & neznámé \\ \hline
@@ -535,7 +536,7 @@ Výjimkou je v~tomto případě hlavička souborového systému NTFS. Její umí
 
 \obr{Schéma \uv{mapování} mezi šifrovaným a otevřeným BitLocker zařízením}{fig:bitlocker-decrypt}{0.75}{img/bitlocker-decrypt-schema.png}
 
-Speciální zacházení vyžaduje NTFS hlavička proto, že na výsledném otevřeném zařízení musí být na jeho začátku, aby toto zařízení bylo systémem správně rozpoznáno jako NTFS a jako takové připojeno. Proto je třeba NTFS hlavičku přesunout na začátek disku a nahradit jí původní BitLocker hlavičku. Umístění NTFS hlavičky v~šifrovaných datech je zapsáno ve FVE metadatech ve speciálním záznamu typu \emph{hlavička disku} (viz tabulka \ref{tab:fve-entry-types}). V~záznamu je uveden offset (v~sektorech, relativně k~začátku disku), na kterém se zašifrovaná NTFS hlavička nachází a její velikost (u~testovaných zařízení 8~KiB, což také odpovídá velikosti vyhrazené pro BitLocker hlavičku).
+Speciální zacházení vyžaduje NTFS hlavička proto, že na výsledném otevřeném zařízení musí být na jeho začátku, aby toto zařízení bylo systémem správně rozpoznáno jako NTFS a jako takové připojeno. Proto je třeba NTFS hlavičku přesunout na začátek disku a nahradit jí původní BitLocker hlavičku. Umístění NTFS hlavičky v~šifrovaných datech je zapsáno ve FVE metadatech ve speciálním záznamu typu \emph{hlavička disku} (viz tabulka \ref{tab:fve-entry-types}). V~záznamu je uveden offset (relativně k~začátku disku), na kterém se zašifrovaná NTFS hlavička nachází a její velikost (u~testovaných zařízení 8~KiB, což také odpovídá velikosti vyhrazené pro BitLocker hlavičku).
 
 Vzhledem k~tomu, že výsledné otevřené zařízení má mít stejnou velikost jako šifrované zařízení, zbývá ještě vyřešit, jak bude v~otevřeném zařízení naloženo s~metadaty --- na jejich místě v~otevřeném NTFS musí \uv{něco} být a zároveň je třeba ochránit je proti náhodnému přepsání nebo smazání. Teoreticky je možné tato metadata prostě dešifrovat stejně jako ostatní šifrovaná data. Výsledkem by pak sice byla nesmyslná data, ale pokud je zařízení již otevřeno, není třeba k~metadatům již znovu přistupovat a je tedy jedno, že nejsou čitelná. Takováto \uv{nesmyslná} data by už jen stačilo v~rámci NTFS ochránit před přepsáním. Pokud by bylo třeba k~metadatům přistupovat i u~otevřeného zařízení, bylo by další možností nechat je prostě viditelná tak, jak jsou (a opět je ochránit před přepsání).
 
@@ -589,13 +590,13 @@ Jedinou neznámou potřebnou pro dešifrování dat tak zůstává inicializačn
 
 Dešifrovaný první sektor je vidět na obrázku \ref{fig:ntfs-header}. Jde zde velmi dobře poznat podobnost NTFS hlavičky s~BitLocker hlavičkou (obrázek \ref{fig:bitlocker-header}). Hlavní odlišností je signatura, která je zde jasně viditelná jako \texttt{NTFS}, na rozdíl od \texttt{-FVE-FS-} u~BitLockeru. Chybí také offsety BitLocker metadat, které u~BitLocker hlavičky \uv{zabírají} část boot kódu, který je u~NTFS kompletní. Zajímavá je stejná boot signatura (\texttt{55 aa}) u~obou hlaviček.
 
-U~zbývajících dat pak dešifrování probíhá stejně --- po 512 B sektorech s~inicializačním vektorem nastaveným na číslo sektoru odpovídající jejich umístění na šifrovaném zařízení. Jedinou výjimkou jsou oblasti BitLocker metadata, která jsou nahrazena nulami, jak bylo popsáno v~části \ref{sec:data-map}.
+U~zbývajících dat pak dešifrování probíhá stejně --- po 512 B sektorech s~inicializačním vektorem nastaveným na číslo sektoru odpovídající jejich umístění na šifrovaném zařízení. Jedinou výjimkou jsou oblasti BitLocker metadat, které jsou nahrazeny nulami, jak bylo popsáno v~části \ref{sec:data-map}.
 
 \n{2}{Odlišnosti ve starších verzích}\label{sec:old-versions}
 
 Výše popsaná struktura diskového formátu BitLocker, způsob uložení klíčů a rozložení dat na šifrovaném a dešifrovaném zařízení, odpovídají aktuální nejnovější verzi BitLockeru dostupné ve Windows 7 a novějších. Původní verze dostupná ve Windows Vista se v~některých drobnostech mírně liší. Tato práce se primárně zaobírá nejnovější verzí, protože je v~současné době jedinou podporovanou (oficiální podpora Windows Vista byla ukončena 11. dubna 2017\cite{hfTs55csrXKY7b4F}). Podpora pro starší verze však může být také v~některých případech vyžadovaná, a proto si ve stručnosti představíme nejvýznamnější odlišnosti mezi těmito verzemi.
 
-Nejvýraznější změnou je nejspíše změna algoritmu použitého pro šifrování data z~AES-CBC s~Elephant difuzérem nejdříve pouze na AES-CBC\cite{Rosendorf2013} a později na AES-XTS\cite{Sosnowski2016} (rozdíl mezi těmito algoritmy je popsán v~části \ref{sec:algorithms}), ale menší změny se týkají i samotných metadat a hlavičky.
+Nejvýraznější změnou je nejspíše změna algoritmu použitého pro šifrování dat z~AES-CBC s~Elephant difuzérem nejdříve pouze na AES-CBC\cite{Rosendorf2013} a později na AES-XTS\cite{Sosnowski2016} (rozdíl mezi těmito algoritmy je popsán v~části \ref{sec:algorithms}), ale menší změny se týkají i samotných metadat a hlavičky.
 
 \n{3}{Hlavička}
 
@@ -716,7 +717,7 @@ Splnění výše uvedených požadavků lze rozdělit do tří částí:
 \begin{enumerate}
 	\item podpora pro přímou práci se šifrovanými daty, tedy jejich dešifrování při čtení a šifrování při zápisu,
 	\item podpora pro práci s~metadaty BitLockeru, tedy identifikaci BitLocker zařízení a získání důležitých informací pro práci s~BitLockerem, jako je použitý šifrovací algoritmus, způsob uložení dat na disku a především klíče pro (de)šifrování dat a
-	\item integrace s~existujícími systémový nástroji a démony pro práci s~úložnými zařízeními tak, aby z~pohledu uživatele fungovala práce s~BitLocker zařízeními stejně, jako práce se zařízeními šifrovanými pomocí nativní technologie LUKS/dm-crypt.
+	\item integrace s~existujícími systémový nástroji a démony pro práci s~úložnými zařízeními tak, aby z~pohledu uživatele fungovala práce s~BitLocker zařízeními stej\-ně, jako práce se zařízeními šifrovanými pomocí nativní technologie LUKS/dm-crypt.
 \end{enumerate}
 
 První část lze vyřešit pomocí existujícího kernelového ovladače Device Mapper. Přímá nízkoúrovňová práce s~blokovými zařízeními tak bude vyřešena přímo v~kernelu a pro (de)šifrování dat bude využito kryptografických funkcí z~kernel crypto API. Pro podporu nejnovější verze BitLockeru s~šifrováním AES-XTS dokonce není potřeba Device Mapper nijak upravovat. Podrobněji je toto řešení probráno v~části \ref{sec:device-mapper}.
@@ -763,11 +764,11 @@ Crypto target podporuje všechny šifry, které jsou podporovány v~linuxovém k
 
 Z~výše uvedeného popisu Device Mapperu, crypto targetu a stručného představení technologie LUKS, vyplývá, že BitLocker a LUKS/dm-crypt jsou velice podobné technologie. Obě mají na disku metadata v~otevřené podobě, která obsahují zašifrovaný klíč použitý k~šifrování dat uložených na disku. Ve výchozím nastavení dokonce BitLocker i LUKS/dm-crypt používají stejnou šifrovací funkci --- AES v~XTS módu a stejný inicializační vektor --- číslo sektoru. Jsou zde rozdíly ve způsobu uložení dat a metadat na disku a práci s~klíči, ale z~pohledu Device Mapperu stačí znát (de)šifrovací klíč pro data a mapu šifrovaných dat na disku a může s~BitLockerem pracovat stejně jako s~jakýmikoli jinými šifrovanými daty.
 
-Způsob, jak jsou v~BitLocker metadatech uloženy klíče je popsán v~části \ref{sec:keys}. Pro použití s~Device Mapperem tedy stačí pouze získat z~FVE metadat FVEK a použít ho pro vytvoření dm-crypt zařízení.
+Způsob, jak jsou v~BitLocker metadatech uloženy klíče, je popsán v~části \ref{sec:keys}. Pro použití s~Device Mapperem tedy stačí pouze získat z~FVE metadat FVEK a použít ho pro vytvoření dm-crypt zařízení.
 
 \obr{Schéma použitých DM targetů při odemykání BitLocker zařízení}{fig:bitlocker-dm-scheme}{0.75}{img/bitlocker-dm-schema.png}
 
-Jak bylo popsáno v~části \ref{sec:data-map} a naznačeno na obrázku \ref{fig:bitlocker-decrypt}, struktura uložení dat na BitLocker zařízení je relativně složitá a dešifrované zařízení má některá data, jako například NTFS hlavičku, přesunutá na jiná místa. I~toto lze pomocí Device Mapperu vyřešit jednoduše --- mapování různých sektorů původního (šifrovaného) zařízení na zařízení nové je jednou ze základních funkcí, kterou Device Mapper nabízí, a tato funkcionalita je dostupná pro všechny targety, tedy i pro crypto target.
+Jak již bylo popsáno v~části \ref{sec:data-map} a naznačeno na obrázku \ref{fig:bitlocker-decrypt}, struktura uložení dat na BitLocker zařízení je relativně složitá a dešifrované zařízení má některá data, jako například NTFS hlavičku, přesunutá na jiná místa. I~toto lze pomocí Device Mapperu vyřešit jednoduše --- mapování různých sektorů původního (šifrovaného) zařízení na zařízení nové je jednou ze základních funkcí, kterou Device Mapper nabízí, a tato funkcionalita je dostupná pro všechny targety, tedy i pro crypto target.
 
 Stačí tedy vědět, které sektory šifrovaného zařízení je třeba namapovat na které sektory otevřeného zařízení. Metadatové části, které jsou v~otevřeném zařízení v~BitLockeru nahrazeny nulami, mohou být stejně snadno nahrazeny pomocí Device Mapper targetu zero, který je mimo jiné také ochrání proti náhodnému přepsání, protože zápisy na dm-zero zařízení jsou zahazovány\cite{KernelZero}.
 
@@ -899,7 +900,7 @@ I~když je často kritizována roztříštěnost linuxových systémů, která s
 
 Díky výše popsanému stačí, aby UDisks správně označil vybrané BitLocker zařízení jako šifrované a umožnil jeho odemčení, a bez dalších úprav pak nástroje, které UDisks používají, nabídnou uživateli jeho odemčení.
 
-UDisks není jediným nástrojem, ale spíše projektem, který poskytuje hned několik různých možností pro práci s~úložnými zařízeními --- démona \emph{udisksd}, knihovnu \emph{libudisks} a konzolový nástroj \emph{udisksctl}\cite{UDisks2018}. Pro uživatele API, které UDisks nabízí, je nejdůležitější, že poskytuje DBus API\footnote{DBus je softwarová sběrnice, která umožňuje komunikaci mezi jednotlivými aplikacemi a démony (IPC) a také spouštění funkcí z~API, které poskytují systémový démoni (RPC). V~grafických prostředích jako GNOME a KDE se používají právě pro komunikaci se systémovými démony jako je UDisks a další.\cite{Palmieri2005}}, kdy na interface \emph{org.freedesktop.UDisks2} vystavuje všechna existující bloková zařízení a umožňuje snadný přístup k~jejich vlastnostem a přes nabízené funkce také jejich úpravy a správu.
+UDisks není jediným nástrojem, ale spíše projektem, který poskytuje hned několik různých možností pro práci s~úložnými zařízeními --- démona \emph{udisksd}, knihovnu \emph{libudisks} a konzolový nástroj \emph{udisksctl}\cite{UDisks2018}. Pro uživatele API, které UDisks nabízí, je nejdůležitější, že poskytuje DBus API\footnote{DBus je softwarová sběrnice, která umožňuje komunikaci mezi jednotlivými aplikacemi a démony (IPC) a také spouštění funkcí z~API, které poskytují systémový démoni (RPC). V~grafických prostředích jako GNOME a KDE se používají právě pro komunikaci se systémovými démony jako je UDisks a další.\cite{Palmieri2005}}, kdy na rozhraní \emph{org.freedesktop.UDisks2} vystavuje všechna existující bloková zařízení a umožňuje snadný přístup k~jejich vlastnostem a přes nabízené funkce také jejich úpravy a správu.
 
 \n{3}{Identifikace BitLockeru}\label{sec:bitlocker-identification}
 
@@ -965,7 +966,7 @@ UDisks také pro toto zařízení nevytvoří rozhraní \emph{org.freedesktop.UD
 
 \n{3}{Knihovna libblockdev}\label{sec:libblockdev}
 
-UDisks nepracuje s~blokovými zařízeními na přímo, ale využívá buď UDev databázi (pro zjištění informací o~existujících zařízeních, viz část o~identifikaci BitLocker zařízení \ref{sec:bitlocker-identification}), nebo knihovnu libblockdev (pro samotnou manipulaci se zařízeními)\cite{Podzimek2017}. Jakákoli nová vlastnost, která má být přidána do UDisks, musí tedy být napřed přidána do libblockdev.
+UDisks nepracuje s~blokovými zařízeními přímo, ale využívá buď UDev databázi (pro zjištění informací o~existujících zařízeních, viz část o~identifikaci BitLocker zařízení \ref{sec:bitlocker-identification}), nebo knihovnu libblockdev (pro samotnou manipulaci se zařízeními)\cite{Podzimek2017}. Jakákoli nová vlastnost, která má být přidána do UDisks, musí tedy být napřed přidána do libblockdev.
 
 Libblockdev je relativně jednoduchá knihovna napsaná v~jazyce C, která poskytuje jednotné API pro různé technologie pro práci s~úložnými zařízeními jako je LVM, Btrfs nebo LUKS. Je také modulární a poskytované funkce jsou rozděleny do pluginů, které je možné používat samostatně. Kromě jazyka C nabízí také rozhraní pro Python díky využití technologie GObject introspection.\cite{Podzimek2015}
 
@@ -1001,9 +1002,9 @@ Patche pro knihovnu libblockdev implementující výše zmíněné funkce jsou s
 
 V~samotném UDisks je nejprve třeba vyřešit identifikaci BitLocker zařízení jako podporovaného šifrovaného zařízení, jak je popsáno v~části \ref{sec:bitlocker-identification}. K~tomu slouží nově přidaná funkce \texttt{udisks$\_$linux$\_$block$\_$is$\_$bitlocker}, která využívá informace z~UDev databáze pro identifikaci blokového zařízení jako BitLocker. S~pomocí této funkce pak stačí UDisks již jen upravit tak, aby BitLocker zařízení přidal DBus rozhraní \emph{org.freedesktop.org.UDisks2.Encrypted} a zpřístupnil tak obecné proměnné a funkce pro šifrovaná zařízení. Které bude třeba následně upravit tak, aby správně podporovaly i BitLocker.
 
-Díky tomu, že UDisks podporuje kromě technologie LUKS/dm-crypt také zařízení šifrovaná pomocí TrueCrypt/VeraCrypt, je kód je již připraven na podporu více různých technologií, kdy jsou k~dispozici obecné implementace funkcí sloužící k~obsluze API volání pro odemykání a uzamykání šifrovaných zařízení a pro přidání podpory pro nové technologie stačí vytvořit pomocné funkce s~minimálními úpravami v~implementaci veřejných funkcí.
+Díky tomu, že UDisks podporuje kromě technologie LUKS/dm-crypt také zařízení šifrovaná pomocí TrueCrypt/VeraCrypt, jeho kód je již připraven na podporu více různých technologií, kdy jsou k~dispozici obecné implementace funkcí sloužící k~obsluze API volání pro odemykání a uzamykání šifrovaných zařízení a pro přidání podpory pro nové technologie stačí vytvořit pomocné funkce s~minimálními úpravami v~implementaci veřejných funkcí.
 
-Pro BitLocker takto byly vytvořeny pomocné funkce \texttt{bitlocker$\_$open$\_$job$\_$func} a \texttt{bitlocker$\_$close$\_$job$\_$func}, které jsou volány z~obecných funkcí \texttt{handle$\_$unlock} a \texttt{handle$\_$lock}, které obsluhují API volání veřejných funkcí \emph{Unlock} a \emph{Lock}. Jejich API je definováno velmi obecně (povinným parametrem funkce \emph{Unlock} je pouze heslo, ostatní jsou předávány jako nepovinný seznam klíč-hodnota\cite{Storaged2019}), takže pro BitLocker není potřeba jej nijak měnit. Ostatní funkce veřejného API (\emph{ChangePassphrase} a \emph{Resize}), které nejsou pro BitLocker podporovány byly upraveny tak, aby při zavolání vracely chybovou hlášku informující o~tom, že tato funkcionalita není pro BitLocker podporována, protože u~existujícího DBus interface nelze funkce dynamicky odebírat.
+Pro BitLocker takto byly vytvořeny pomocné funkce \texttt{bitlocker$\_$open$\_$job$\_$func} a \texttt{bitlocker$\_$close$\_$job$\_$func}, které jsou volány z~obecných funkcí \texttt{handle$\_$unlock} a \texttt{handle$\_$lock}, které obsluhují API volání veřejných funkcí \emph{Unlock} a \emph{Lock}. Jejich API je definováno velmi obecně (povinným parametrem funkce \emph{Unlock} je pouze heslo, ostatní jsou předávány jako nepovinný seznam klíč-hodnota\cite{Storaged2019}), takže pro BitLocker není potřeba jej nijak měnit. Ostatní funkce veřejného API (\emph{ChangePassphrase} a \emph{Resize}), které nejsou pro BitLocker podporovány byly upraveny tak, aby při zavolání vracely chybovou hlášku informující o~tom, že tato funkcionalita není pro BitLocker podporována, protože u~existujícího DBus rozhraní nelze funkce dynamicky odebírat.
 
 Díky tomu, že všechny součásti UDisks --- tedy DBus démon, knihovna i konzolový nástroj --- jsou generovány ze stejného kódu, není potřeba upravovat žádné další části kódu, kromě výše zmíněných, a podpora pro odemykání BitLocker zařízení bude automaticky propagována i do nástroje \texttt{udisksctl}.
 
