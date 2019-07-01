@@ -188,6 +188,8 @@ def parse_args():
 
     # subparser for the 'image' command
     parser_image = subparsers.add_parser("image", help="Decrypt a BitLocker device and save it as an image")
+    parser_image.add_argument("-p", "--passphrase", dest="passphrase", nargs=1,
+                              help=argparse.SUPPRESS)
     parser_image.add_argument("device", help="device to decrypt")
     parser_image.add_argument("filename", help="name for the decrypted image")
     parser_open.add_argument("input", nargs='?', type=argparse.FileType("r"),
