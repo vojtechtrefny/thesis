@@ -123,11 +123,18 @@ def process_commands(args):
                 return True
 
         fve = _parse_metadata(args.device)
+
+        if fve.encryption_type == 0x8004:
+            cipher = constants.Ciphers.AES_XTS
+        elif fve.encryption_type in (0x8002, 0x8003):
+            cipher = constants.Ciphers.AES_CBC
+
         image.decrypt_and_save_image(fve,
                                      args.verbose,
                                      args.device,
                                      fve.get_fvek_by_passphrase(password),
-                                     os.path.realpath(args.filename))
+                                     os.path.realpath(args.filename),
+                                     cipher)
 
     # dump
     if args.mode == Modes.DUMP:

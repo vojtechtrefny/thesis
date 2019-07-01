@@ -19,7 +19,7 @@ from cryptography.hazmat.backends import default_backend
 from bitlockersetup import constants, utils
 
 
-def _decrypt_data(key, data, iv_offset):
+def _decrypt_data(key, data, iv_offset, cipher):
     decrypted = bytearray()
 
     sectors = int(len(data) / constants.SECTOR_SIZE)
@@ -27,9 +27,19 @@ def _decrypt_data(key, data, iv_offset):
     for i in range(sectors):
         iv = (int(iv_offset / constants.SECTOR_SIZE) + i).to_bytes(16, "little")  # IV = block number
 
-        cipher = Cipher(algorithms.AES(key), modes.XTS(iv),
-                        backend=default_backend())
-        decryptor = cipher.decryptor()
+        if cipher == constants.Ciphers.AES_CBC:
+            iv_cipher = Cipher(algorithms.AES(key), modes.ECB(),
+                               backend=default_backend())
+            encryptor = iv_cipher.encryptor()
+            iv = encryptor.update(iv) + encryptor.finalize()
+
+            mode_fn = modes.CBC
+        elif cipher == constants.Ciphers.AES_XTS:
+            mode_fn = modes.XTS
+
+        data_cipher = Cipher(algorithms.AES(key), mode_fn(iv),
+                             backend=default_backend())
+        decryptor = data_cipher.decryptor()
         start = i * constants.SECTOR_SIZE
         end = (i * constants.SECTOR_SIZE) + constants.SECTOR_SIZE
         result = decryptor.update(data[start:end]) + decryptor.finalize()
@@ -38,7 +48,7 @@ def _decrypt_data(key, data, iv_offset):
     return decrypted
 
 
-def _read_and_decrypt_data(device, start, count, key, iv_offset):
+def _read_and_decrypt_data(device, start, count, key, iv_offset, cipher):
     """ Read the device sector by sector and decrypt it """
     decrypted = bytearray()
 
@@ -47,13 +57,13 @@ def _read_and_decrypt_data(device, start, count, key, iv_offset):
 
         for i in range(0, count, constants.SECTOR_SIZE):
             data = f.read(constants.SECTOR_SIZE)
-            decrypted_data = _decrypt_data(key, data, iv_offset + i)
+            decrypted_data = _decrypt_data(key, data, iv_offset + i, cipher)
             decrypted.extend(bytearray(decrypted_data))
 
     return decrypted
 
 
-def decrypt_and_save_image(fve, debug, device, fvek_open_key, res_file):
+def decrypt_and_save_image(fve, debug, device, fvek_open_key, res_file, cipher=constants.Ciphers.AES_XTS):
     """
     Decrypt entire seleted device and save the data as a raw image
 
@@ -81,7 +91,8 @@ def decrypt_and_save_image(fve, debug, device, fvek_open_key, res_file):
     # decrypted first data block
     decrypted_data = _decrypt_data(fvek_open_key.key,
                                    data_block,
-                                   first_block.data_offset)
+                                   first_block.data_offset,
+                                   cipher)
 
     if debug:
         print("\033[1mFirst sector (decrypted):\033[0m")
@@ -93,10 +104,14 @@ def decrypt_and_save_image(fve, debug, device, fvek_open_key, res_file):
                                          first_block.block_size)
     decrypted_header = _decrypt_data(fvek_open_key.key,
                                      header_data,
-                                     first_block.data_offset)
+                                     first_block.data_offset,
+                                     cipher)
 
     # decrypt everything
-    decrypted_everything = _read_and_decrypt_data(device, 8192, fve._device_size - 8192, fvek_open_key.key, 8192)
+    decrypted_everything = _read_and_decrypt_data(device, 8192,
+                                                  fve._device_size - 8192,
+                                                  fvek_open_key.key, 8192,
+                                                  cipher)
 
     # now replace bitlocker metadata with zeroes
     # - 64k after each fve header start

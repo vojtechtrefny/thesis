@@ -14,8 +14,19 @@
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
 
+from enum import Enum
+
+
 # misc
 SECTOR_SIZE = 512
+
+class Ciphers(Enum):
+    """
+    Ciphers used in BitLocker
+    """
+
+    AES_CBC = 1
+    AES_XTS = 2
 
 
 # signature
