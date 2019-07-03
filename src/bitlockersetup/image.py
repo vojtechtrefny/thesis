@@ -25,9 +25,10 @@ def _decrypt_data(key, data, iv_offset, cipher):
     sectors = int(len(data) / constants.SECTOR_SIZE)
 
     for i in range(sectors):
-        iv = (int(iv_offset / constants.SECTOR_SIZE) + i).to_bytes(16, "little")  # IV = block number
-
         if cipher == constants.Ciphers.AES_CBC:
+            # IV = ECB encrypted offset in bytes
+            iv = (iv_offset + i * constants.SECTOR_SIZE).to_bytes(16, "little")
+
             iv_cipher = Cipher(algorithms.AES(key), modes.ECB(),
                                backend=default_backend())
             encryptor = iv_cipher.encryptor()
@@ -35,6 +36,8 @@ def _decrypt_data(key, data, iv_offset, cipher):
 
             mode_fn = modes.CBC
         elif cipher == constants.Ciphers.AES_XTS:
+            # IV = offset in sectors
+            iv = (int(iv_offset / constants.SECTOR_SIZE) + i).to_bytes(16, "little")
             mode_fn = modes.XTS
 
         data_cipher = Cipher(algorithms.AES(key), mode_fn(iv),
