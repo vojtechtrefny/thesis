@@ -22,7 +22,7 @@ from enum import Enum
 
 from . import dm, image, errors, constants
 from .fve import FVE
-from .header import BitLockerHeader
+from .header import BitLockerHeader, get_header
 from .errors import BitLockerSetupError
 
 
@@ -43,7 +43,7 @@ class Modes(Enum):
 
 
 def _parse_metadata(device):
-    header = BitLockerHeader(device)
+    header = get_header(device)
     fve = FVE(device, header)
 
     return fve
@@ -138,7 +138,7 @@ def process_commands(args):
 
     # dump
     if args.mode == Modes.DUMP:
-        header = BitLockerHeader(args.device)
+        header = get_header(args.device)
         fve = FVE(args.device, header)
         print(fve)
 
