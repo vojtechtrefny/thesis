@@ -56,6 +56,12 @@ ENCRYPTION_METHODS = {0x2003: "AES-CCM 128-bit encryption",
                       0x8003: "AES-CBC 256-bit encryption",
                       0x8004: "AES-XTS 128-bit encryption"}
 
+ENCRYPTION_TO_DM = {0x8000: None,
+                    0x8001: None,
+                    0x8002: "aes-cbc-eboiv",
+                    0x8003: "aes-cbc-eboiv",
+                    0x8004: "aes-xts-plain"}
+
 
 # metadata entries
 FVE_ENTRY_TYPES = {0x0000: "Property",

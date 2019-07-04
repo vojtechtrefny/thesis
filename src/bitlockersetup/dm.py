@@ -59,8 +59,9 @@ def create_dm_device(fve, device, fvek_open_key, mapper_name):
     """
 
     first_block = fve.volume_header_block
+    dm_cipher = constants.ENCRYPTION_TO_DM[fve.encryption_type]
 
-    crypt_template = "{start} {size} crypt aes-xts-plain64 {key} {iv_offset} {device} {offset}"
+    crypt_template = "{start} {size} crypt %s {key} {iv_offset} {device} {offset}" % dm_cipher
     zero_template = "{start} {size} zero"
     table = ""
     start = 0

@@ -101,12 +101,6 @@ def process_commands(args):
     if args.mode == Modes.OPEN:
         fve = _parse_metadata(args.device)
 
-        if fve.encryption_type != 0x8004:
-            # only AES-XTS is currently supported
-            raise BitLockerSetupError("Unsupported BitLocker encryption '%s'. "
-                                      "Currently only 'AES-XTS 128-bit encryption'"
-                                      "is supported." % constants.ENCRYPTION_METHODS[fve.encryption_type])
-
         if not args.name:
             name = "bitlocker-" + fve.guid
         else:
