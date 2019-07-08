@@ -224,7 +224,34 @@ def run_command(command):
     return (res.returncode, output)
 
 
+def read_file(fname):
+    content = ""
+    with open(fname, "r") as f:
+        content = f.read().decode().strip()
+
+    return content
+
+
 # passphrase
+def get_passphrase_from_recovery(recovery_password):
+    # first split into parts and convert to int
+    parts = recovery_password.split("-")
+    parts = [int(p) for p in parts]
+
+    # check everything is divisible by 11
+    if not all((p % 11 == 0 for p in parts)):
+        raise ValueError("Recovery password is not valid.")
+
+    # now divide parts by 11
+    parts = [p // 11 for p in parts]
+
+    # and convert all parts to 2 B little endian values
+    parts = [p.to_bytes(2, "little") for p in parts]
+
+    # return final value -- joined 16 B (128 bit) recovery "key"
+    return b"".join(parts)
+
+
 def sha256(data):
     """
     Calculate SHA256 hash
@@ -238,7 +265,7 @@ def sha256(data):
     return m.digest()
 
 
-def get_key_from_password(password, salt):
+def get_key_from_password(password, salt, recovery=False):
     """
     Derivate key from a password. Uses BitLocker custom KDF.
 
@@ -246,9 +273,11 @@ def get_key_from_password(password, salt):
               take some time on slower PCs.
 
     :param password: password from user input
-    :type password: string
+    :type password: bytes
     :param salt: salt from VMK protected using this password
     :type salt: bytes
+    :param recovery: whether we are working with recovery password or not
+    :type recovery: bool
     :returns: derived key
     :rtype: bytes
     """
@@ -259,12 +288,15 @@ def get_key_from_password(password, salt):
     salt = salt
     count = 0
 
-    # encode password and cut first two bytes from the password (utf-16 byte-order mark)
-    enc_pw = password.encode("utf-16")[2:]
+    # initial sha256
+    pw_sha256 = sha256(password)
+    if recovery:
+        # nothing to do here, one sha256 is enough for recovery password
+        initial_sha256 = pw_sha256
+    else:
+        # we need to do one extra sha256 for the "normal" password
+        initial_sha256 = sha256(pw_sha256)
 
-    # initial sha256 -- sha256 of sha256 of the password
-    pw_sha256 = sha256(enc_pw)
-    initial_sha256 = sha256(pw_sha256)
 
     # initial settings done, let's pack it in the "struct"
     data = last_sha256 + initial_sha256 + salt + (count).to_bytes(8, "little")

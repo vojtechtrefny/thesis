@@ -233,6 +233,25 @@ class FVE():
 
         return self._encryption_type
 
+    def _get_fvek_by_vmk(self, vmk, vmk_key):
+        # decrypt the VMK
+        suite = AES.new(vmk_key, AES.MODE_CCM, vmk.aes_key.raw_nonce)
+
+        try:
+            decrypted_data = suite.decrypt_and_verify(vmk.aes_key.key,
+                                                      received_mac_tag=vmk.aes_key.mac_tag)
+            vmk_open_key = UnecryptedKey(decrypted_data)
+        except ValueError as e:
+            raise FVEException("Failed to decrypt VMK: %s" % str(e)) from e
+
+        # and use it to decrypt the FVEK
+        suite = AES.new(vmk_open_key.key, AES.MODE_CCM, self.fvek.raw_nonce)
+        decrypted_data = suite.decrypt_and_verify(self.fvek.key,
+                                                  received_mac_tag=self.fvek.mac_tag)
+
+        return UnecryptedKey(decrypted_data)
+
+
     def get_fvek_by_passphrase(self, password):
         """
         Extract decrypted FVEK using a password protected VMK
@@ -247,21 +266,32 @@ class FVE():
         if pw_vmk is None:
             raise FVEException("No password protected VMKs found.")
 
-        pw_vmk_key = utils.get_key_from_password(password, pw_vmk.salt)
+        # encode password and cut first two bytes from the password (utf-16 byte-order mark)
+        password = password.encode("utf-16")[2:]
 
-        # decrypt the VMK
-        suite = AES.new(pw_vmk_key, AES.MODE_CCM, pw_vmk.aes_key.raw_nonce)
+        # and now derive the key for decrypting VMK from the password
+        vmk_key = utils.get_key_from_password(password, pw_vmk.salt, recovery=False)
 
-        try:
-            decrypted_data = suite.decrypt_and_verify(pw_vmk.aes_key.key,
-                                                      received_mac_tag=pw_vmk.aes_key.mac_tag)
-            vmk_open_key = UnecryptedKey(decrypted_data)
-        except ValueError as e:
-            raise FVEException("Failed to decrypt password protected VMK: %s" % str(e)) from e
+        return self._get_fvek_by_vmk(pw_vmk, vmk_key)
 
-        # and use it to decrypt the FVEK
-        suite = AES.new(vmk_open_key.key, AES.MODE_CCM, self.fvek.raw_nonce)
-        decrypted_data = suite.decrypt_and_verify(self.fvek.key,
-                                                  received_mac_tag=self.fvek.mac_tag)
+    def get_fvek_by_recovery_passphrase(self, recovery_password):
+        """
+        Extract decrypted FVEK using a recovery password protected VMK
 
-        return UnecryptedKey(decrypted_data)
+        :param password: recovery password
+        :type password: string
+
+        :rtype: :func:`~bitlockersetup.keys.UnecryptedKey`
+        """
+        # get the VMK protected by password and calculate VMK key from it
+        rpw_vmk = next(v for v in self.vmks if v.is_recovery_protected)
+        if rpw_vmk is None:
+            raise FVEException("No recovery password protected VMKs found.")
+
+        # get recovery 'key' from the password (split, divide by 11 and join)
+        recovery_password = utils.get_passphrase_from_recovery(recovery_password)
+
+        # and now derive the key for decrypting VMK from the recovery password
+        vmk_key = utils.get_key_from_password(recovery_password, rpw_vmk.salt, recovery=True)
+
+        return self._get_fvek_by_vmk(rpw_vmk, vmk_key)

@@ -20,7 +20,7 @@ import sys
 
 from enum import Enum
 
-from . import dm, image, errors, constants
+from . import dm, image, errors, constants, utils
 from .fve import FVE
 from .header import BitLockerHeader, get_header
 from .errors import BitLockerSetupError
@@ -75,6 +75,11 @@ def process_commands(args):
     if args.mode in (Modes.OPEN, Modes.IMAGE):
         if args.passphrase:
             password = args.passphrase[0]
+        elif args.recovery:
+            if os.path.exists(os.path.realpath(args.recovery[0])):
+                password = utils.read_file(args.recovery[0])
+            else:
+                password = args.recovery[0]
         elif args.quiet:
             # quiet mode, read password from stdin
             password = args.input.read()
@@ -106,8 +111,12 @@ def process_commands(args):
         else:
             name = args.name
 
-        dm.create_dm_device(fve, args.device,
-                            fve.get_fvek_by_passphrase(password), name)
+        if args.recovery:
+            fvek = fve.get_fvek_by_recovery_passphrase(password)
+        else:
+            fvek = fve.get_fvek_by_passphrase(password)
+
+        dm.create_dm_device(fve, args.device, fvek, name)
 
     # image
     if args.mode == Modes.IMAGE:
@@ -123,10 +132,15 @@ def process_commands(args):
         elif fve.encryption_type in (0x8002, 0x8003):
             cipher = constants.Ciphers.AES_CBC
 
+        if args.recovery:
+            fvek = fve.get_fvek_by_recovery_passphrase(password)
+        else:
+            fvek = fve.get_fvek_by_passphrase(password)
+
         image.decrypt_and_save_image(fve,
                                      args.verbose,
                                      args.device,
-                                     fve.get_fvek_by_passphrase(password),
+                                     fvek,
                                      os.path.realpath(args.filename),
                                      cipher)
 
@@ -176,6 +190,8 @@ def parse_args():
     parser_open = subparsers.add_parser("open", help="Open a BitLocker device")
     parser_open.add_argument("-p", "--passphrase", dest="passphrase", nargs=1,
                              help=argparse.SUPPRESS)
+    parser_open.add_argument("-r", "--recovery", dest="recovery", nargs=1,
+                             help=argparse.SUPPRESS)
     parser_open.add_argument("device", help="device to open")
     parser_open.add_argument("name", help="name for the open device (optional)", nargs="?", default=None)
     parser_open.add_argument("input", nargs='?', type=argparse.FileType("r"),
@@ -190,6 +206,8 @@ def parse_args():
     # subparser for the 'image' command
     parser_image = subparsers.add_parser("image", help="Decrypt a BitLocker device and save it as an image")
     parser_image.add_argument("-p", "--passphrase", dest="passphrase", nargs=1,
+                              help=argparse.SUPPRESS)
+    parser_image.add_argument("-r", "--recovery", dest="recovery", nargs=1,
                               help=argparse.SUPPRESS)
     parser_image.add_argument("device", help="device to decrypt")
     parser_image.add_argument("filename", help="name for the decrypted image")
